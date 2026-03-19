@@ -1,6 +1,6 @@
 "use client"
 
-import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
+import { getRaidGold, MAX_GOLD_RAIDS, getRaidGroup, RAID_GROUP_COLORS } from "@/lib/raids"
 
 interface RaidSelection {
   raidName: string
@@ -55,16 +55,16 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[1fr_2fr_1fr] text-xs text-gray-600 border-b border-gray-800/60 px-4 py-1.5">
+      <div className="grid grid-cols-[130px_1fr_110px] text-xs text-gray-600 border-b border-gray-800/60 px-4 py-1.5">
         <span>캐릭터</span>
-        <span className="text-center">레이드</span>
+        <span className="pl-2">레이드</span>
         <span className="text-right">골드</span>
       </div>
 
       {/* One row per character */}
       <div className="divide-y divide-gray-800/60">
         {perChar.map((char) => (
-          <div key={char.name} className="grid grid-cols-[1fr_2fr_1fr] items-center gap-3 px-4 py-2.5">
+          <div key={char.name} className="grid grid-cols-[130px_1fr_110px] items-center gap-2 px-4 py-2.5">
             {/* Section 1: Character */}
             <div className="min-w-0">
               <p className="text-sm font-medium text-white truncate">{char.name}</p>
@@ -72,28 +72,40 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
             </div>
 
             {/* Section 2: Raids */}
-            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+            <div className="flex items-center gap-2 pl-2 flex-wrap">
               {char.goldRaids.length === 0 ? (
                 <span className="text-xs text-gray-600">—</span>
               ) : (
-                char.goldRaids.map((raid) => (
-                  <span
-                    key={raid.raidName}
-                    className={
-                      raid.isCompleted
-                        ? "text-xs text-gray-600 line-through"
-                        : "text-xs text-gray-200 font-medium"
-                    }
-                  >
-                    {raid.raidName}
-                  </span>
-                ))
+                char.goldRaids.map((raid) => {
+                  const group = getRaidGroup(raid.raidName)
+                  const colors = group ? RAID_GROUP_COLORS[group] : null
+
+                  if (raid.isCompleted) {
+                    return (
+                      <span
+                        key={raid.raidName}
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-800/50 px-2 py-1 text-xs text-gray-600 line-through"
+                      >
+                        {raid.raidName}
+                      </span>
+                    )
+                  }
+
+                  return (
+                    <span
+                      key={raid.raidName}
+                      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${colors?.bg ?? "bg-gray-700/40"} ${colors?.text ?? "text-gray-200"} ${colors?.border ?? "border-gray-600/50"}`}
+                    >
+                      {raid.raidName}
+                    </span>
+                  )
+                })
               )}
             </div>
 
             {/* Section 3: Gold */}
             <div className="text-right">
-              <p className="text-sm font-medium text-yellow-400">{char.earned.toLocaleString()}g</p>
+              <p className="text-sm font-semibold text-yellow-400">{char.earned.toLocaleString()}g</p>
               <p className="text-xs text-gray-600">/ {char.potential.toLocaleString()}g</p>
             </div>
           </div>
