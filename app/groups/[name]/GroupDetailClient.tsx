@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { RaidBadge } from "@/components/RaidBadge"
-import { RAID_GROUPS, RAID_GROUP_COLORS, getRaidGold } from "@/lib/raids"
+import { RAID_GROUPS, RAID_GROUP_COLORS, getRaidGold, getRaidGroup } from "@/lib/raids"
 import { Trash2, Plus, UserPlus, UserMinus } from "lucide-react"
 
 interface RaidSelection {
@@ -506,26 +506,22 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
                         {/* Raids */}
                         {char.raidSelections.length > 0 ? (
                           <div className="px-3 py-2 flex flex-col gap-1">
-                            {char.raidSelections.map((r) => {
-                              const group = r.raidName ? (() => {
-                                // inline getRaidGroup
-                                for (const [gName, gData] of Object.entries(RAID_GROUPS)) {
-                                  if (gData.raids.some((rd) => rd.name === r.raidName)) return gName
-                                }
-                                return null
-                              })() : null
-                              const colors = group ? RAID_GROUP_COLORS[group] : null
+                            {[...char.raidSelections]
+                              .sort((a, b) => getRaidGold(b.raidName) - getRaidGold(a.raidName))
+                              .map((r) => {
+                              const group = getRaidGroup(r.raidName)
+                              const textColor = group ? RAID_GROUP_COLORS[group]?.text : "text-gray-200"
                               const gold = getRaidGold(r.raidName)
                               return (
                                 <div
                                   key={r.raidName}
                                   className={`flex items-center justify-between rounded-md border px-2 py-1 text-xs ${
                                     r.isCompleted
-                                      ? "border-gray-700/50 bg-gray-700/30 text-gray-600"
-                                      : `${colors?.border ?? "border-gray-600/50"} ${colors?.bg ?? "bg-gray-700/40"}`
+                                      ? "border-gray-700/40 bg-gray-800/40"
+                                      : "border-slate-700/60 bg-slate-800/60"
                                   }`}
                                 >
-                                  <span className={r.isCompleted ? "line-through text-gray-600" : `font-medium ${colors?.text ?? "text-gray-200"}`}>
+                                  <span className={r.isCompleted ? "line-through text-gray-600" : `font-medium ${textColor ?? "text-gray-200"}`}>
                                     {r.raidName}
                                   </span>
                                   <div className="flex items-center gap-1.5">
