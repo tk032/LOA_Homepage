@@ -74,7 +74,7 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
               </div>
 
               {/* Section 2: Raids */}
-              <div className="flex items-center gap-2 px-4 flex-wrap border-r border-gray-800">
+              <div className="flex items-center gap-2 pl-8 pr-4 flex-wrap border-r border-gray-800">
                 {char.goldRaids.length === 0 ? (
                   <span className="text-xs text-gray-600">—</span>
                 ) : (
