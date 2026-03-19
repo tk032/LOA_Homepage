@@ -27,6 +27,7 @@ model Character {
   itemLevel      Float
   imageUrl       String   @default("")
   isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
 
   userId         String

@@ -21,7 +21,7 @@ export default async function DashboardPage() {
       include: {
         raidSelections: { where: { weekStart } },
       },
-      orderBy: { itemLevel: "desc" },
+      orderBy: [{ sortOrder: "asc" }, { itemLevel: "desc" }],
     }),
     prisma.groupMember.findMany({
       where: { userId: session.user.id },

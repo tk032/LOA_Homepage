@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { CharacterCard } from "@/components/CharacterCard"
 import { GoldSummary } from "@/components/GoldSummary"
+import { Settings } from "lucide-react"
 
 interface RaidSelection {
   id: string
@@ -34,6 +35,11 @@ interface DashboardClientProps {
 
 export function DashboardClient({ initialCharacters, weekStart }: DashboardClientProps) {
   const [characters, setCharacters] = useState<Character[]>(initialCharacters)
+  const [editMode, setEditMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Character import / search state
   const [searchName, setSearchName] = useState("")
   const [searchResults, setSearchResults] = useState<LostArkCharacter[]>([])
   const [selectedChars, setSelectedChars] = useState<Set<string>>(new Set())
@@ -57,8 +63,94 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
     }
   }
 
+  // Single delete (used internally by batch delete)
+  async function deleteCharacter(characterId: string): Promise<boolean> {
+    const res = await fetch(`/api/characters/${characterId}`, { method: "DELETE" })
+    return res.ok
+  }
+
+  // Batch delete all selected characters
+  async function handleBatchDelete() {
+    if (selectedIds.size === 0) return
+    setIsDeleting(true)
+    try {
+      const ids = [...selectedIds]
+      const results = await Promise.all(ids.map((id) => deleteCharacter(id)))
+      const deleted = ids.filter((_, i) => results[i])
+      setCharacters((prev) => prev.filter((c) => !deleted.includes(c.id)))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        deleted.forEach((id) => next.delete(id))
+        return next
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   function handleDelete(characterId: string) {
     setCharacters((prev) => prev.filter((c) => c.id !== characterId))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.delete(characterId)
+      return next
+    })
+  }
+
+  function handleSelect(characterId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(characterId)) {
+        next.delete(characterId)
+      } else {
+        next.add(characterId)
+      }
+      return next
+    })
+  }
+
+  async function handleReorder(newOrder: Character[]) {
+    setCharacters(newOrder)
+    await fetch("/api/characters/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order: newOrder.map((c) => c.id) }),
+    })
+  }
+
+  function handleMoveUp(characterId: string) {
+    setCharacters((prev) => {
+      const idx = prev.findIndex((c) => c.id === characterId)
+      if (idx <= 0) return prev
+      const next = [...prev]
+      ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
+      handleReorder(next)
+      return next
+    })
+  }
+
+  function handleMoveDown(characterId: string) {
+    setCharacters((prev) => {
+      const idx = prev.findIndex((c) => c.id === characterId)
+      if (idx < 0 || idx >= prev.length - 1) return prev
+      const next = [...prev]
+      ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
+      handleReorder(next)
+      return next
+    })
+  }
+
+  function handleRaidUpdate(characterId: string, raids: RaidSelection[]) {
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.id === characterId ? { ...c, raidSelections: raids } : c
+      )
+    )
+  }
+
+  function exitEditMode() {
+    setEditMode(false)
+    setSelectedIds(new Set())
   }
 
   async function handleSearch() {
@@ -114,9 +206,7 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
           setCharacters((prev) => {
             // Avoid duplicates
             if (prev.some((c) => c.name === newChar.name)) return prev
-            return [...prev, { ...newChar, itemLevel: Number(newChar.itemLevel) }].sort(
-              (a, b) => b.itemLevel - a.itemLevel
-            )
+            return [...prev, { ...newChar, itemLevel: Number(newChar.itemLevel) }]
           })
         }
       }
@@ -212,7 +302,39 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
 
       {/* Characters grid */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-white">내 캐릭터</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">내 캐릭터</h2>
+          <div className="flex items-center gap-2">
+            {editMode ? (
+              <>
+                {selectedIds.size > 0 && (
+                  <button
+                    onClick={handleBatchDelete}
+                    disabled={isDeleting}
+                    className="rounded-md bg-red-700 hover:bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isDeleting ? "삭제 중..." : `선택 삭제 (${selectedIds.size})`}
+                  </button>
+                )}
+                <button
+                  onClick={exitEditMode}
+                  className="rounded-md bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                >
+                  완료
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditMode(true)}
+                className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                title="편집 모드"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {characters.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/50 p-8 text-center">
             <p className="text-gray-400 text-sm">등록된 캐릭터가 없습니다.</p>
@@ -220,13 +342,21 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {characters.map((character) => (
+            {characters.map((character, idx) => (
               <CharacterCard
                 key={character.id}
                 character={character}
                 weekStart={weekStart}
                 onToggleComplete={handleToggleComplete}
                 onDelete={handleDelete}
+                editMode={editMode}
+                isSelected={selectedIds.has(character.id)}
+                onSelect={handleSelect}
+                canMoveUp={idx > 0}
+                canMoveDown={idx < characters.length - 1}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+                onRaidUpdate={handleRaidUpdate}
               />
             ))}
           </div>

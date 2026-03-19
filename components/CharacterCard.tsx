@@ -10,9 +10,10 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { RaidBadge } from "@/components/RaidBadge"
+import { RaidEditor } from "@/components/RaidEditor"
 import { cn } from "@/lib/utils"
 import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
-import { Settings, Trash2, X } from "lucide-react"
+import { ChevronUp, ChevronDown, Pencil } from "lucide-react"
 
 // Class archetype color mapping
 const CLASS_COLOR: Record<string, string> = {
@@ -60,12 +61,32 @@ interface CharacterCardProps {
   weekStart: string
   onToggleComplete?: (characterId: string, raidName: string, weekStart: string, isCompleted: boolean) => Promise<void>
   onDelete?: (characterId: string) => void
+  editMode?: boolean
+  isSelected?: boolean
+  onSelect?: (characterId: string) => void
+  canMoveUp?: boolean
+  canMoveDown?: boolean
+  onMoveUp?: (characterId: string) => void
+  onMoveDown?: (characterId: string) => void
+  onRaidUpdate?: (characterId: string, raids: RaidSelection[]) => void
 }
 
-export function CharacterCard({ character, weekStart, onToggleComplete, onDelete }: CharacterCardProps) {
+export function CharacterCard({
+  character,
+  weekStart,
+  onToggleComplete,
+  onDelete,
+  editMode = false,
+  isSelected = false,
+  onSelect,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
+  onRaidUpdate,
+}: CharacterCardProps) {
   const [localSelections, setLocalSelections] = useState<RaidSelection[]>(character.raidSelections)
-  const [showSettings, setShowSettings] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [showRaidEditor, setShowRaidEditor] = useState(false)
 
   // Debounce refs per raid
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -91,7 +112,7 @@ export function CharacterCard({ character, weekStart, onToggleComplete, onDelete
     .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
 
   function handleToggle(raidName: string) {
-    if (!onToggleComplete) return
+    if (!onToggleComplete || editMode) return
 
     // Immediate optimistic flip
     let newState = false
@@ -113,22 +134,41 @@ export function CharacterCard({ character, weekStart, onToggleComplete, onDelete
     }, 400)
   }
 
-  async function handleDelete() {
-    setIsDeleting(true)
-    try {
-      const res = await fetch(`/api/characters/${character.id}`, { method: "DELETE" })
-      if (res.ok) {
-        onDelete?.(character.id)
+  function handleRaidEditorSave(raids: string[]) {
+    // Build new RaidSelection array (preserve completion state for existing, add new ones)
+    const newSelections: RaidSelection[] = raids.map((raidName) => {
+      const existing = localSelections.find((r) => r.raidName === raidName)
+      return existing ?? {
+        id: `tmp-${raidName}`,
+        raidName,
+        isCompleted: false,
+        weekStart,
       }
-    } finally {
-      setIsDeleting(false)
-    }
+    })
+    setLocalSelections(newSelections)
+    setShowRaidEditor(false)
+    onRaidUpdate?.(character.id, newSelections)
   }
 
   return (
-    <Card className="bg-gray-900 border-gray-700">
+    <Card className={cn(
+      "bg-gray-900 border-gray-700 transition-colors",
+      editMode && isSelected && "border-blue-500 bg-gray-800/80"
+    )}>
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">
+          {/* Checkbox overlay in edit mode */}
+          {editMode && (
+            <div className="shrink-0">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onSelect?.(character.id)}
+                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer"
+              />
+            </div>
+          )}
+
           {character.imageUrl ? (
             <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 border-2 border-gray-700 bg-gray-800">
               <Image
@@ -142,6 +182,7 @@ export function CharacterCard({ character, weekStart, onToggleComplete, onDelete
           ) : (
             <ClassIcon className={character.characterClass} />
           )}
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-white text-base truncate">{character.name}</CardTitle>
@@ -149,32 +190,53 @@ export function CharacterCard({ character, weekStart, onToggleComplete, onDelete
                 <span className="text-sm font-medium text-blue-400">
                   {character.itemLevel.toLocaleString()}
                 </span>
-                <button
-                  onClick={() => setShowSettings((v) => !v)}
-                  className="ml-1 p-1 rounded text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
-                >
-                  {showSettings ? <X className="h-3.5 w-3.5" /> : <Settings className="h-3.5 w-3.5" />}
-                </button>
+                {editMode && (
+                  <>
+                    <button
+                      onClick={() => setShowRaidEditor((v) => !v)}
+                      className="ml-1 p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+                      title="레이드 편집"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onMoveUp?.(character.id)}
+                      disabled={!canMoveUp}
+                      className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="위로 이동"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onMoveDown?.(character.id)}
+                      disabled={!canMoveDown}
+                      className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="아래로 이동"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{character.characterClass}</p>
           </div>
         </div>
-
-        {showSettings && (
-          <div className="mt-2 flex justify-end">
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="flex items-center gap-1.5 rounded-md bg-red-900/60 hover:bg-red-800 border border-red-700/50 px-3 py-1.5 text-xs font-medium text-red-300 transition-colors disabled:opacity-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              {isDeleting ? "삭제 중..." : "캐릭터 삭제"}
-            </button>
-          </div>
-        )}
       </CardHeader>
+
       <CardContent className="space-y-3">
+        {/* Inline raid editor */}
+        {editMode && showRaidEditor && (
+          <RaidEditor
+            characterId={character.id}
+            itemLevel={character.itemLevel}
+            weekStart={weekStart}
+            currentRaids={localSelections.map((r) => r.raidName)}
+            onSave={handleRaidEditorSave}
+            onCancel={() => setShowRaidEditor(false)}
+          />
+        )}
+
         {total > 0 ? (
           <>
             <div className="flex items-center justify-between text-xs text-gray-400">
@@ -190,7 +252,8 @@ export function CharacterCard({ character, weekStart, onToggleComplete, onDelete
                   <button
                     key={selection.raidName}
                     onClick={() => handleToggle(selection.raidName)}
-                    className="transition-opacity"
+                    disabled={editMode}
+                    className="transition-opacity disabled:cursor-default"
                   >
                     <span
                       className={cn(
