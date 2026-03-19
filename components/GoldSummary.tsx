@@ -57,9 +57,9 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[140px_1fr_140px] text-xs text-gray-600 border-b border-gray-800/60 px-4 py-1.5">
+      <div className="grid grid-cols-[160px_1fr_180px] text-xs text-gray-600 border-b border-gray-800/60 px-4 py-1.5">
         <span>캐릭터</span>
-        <span className="px-4">레이드</span>
+        <span className="pl-14">레이드</span>
         <span className="text-right">골드</span>
       </div>
 
@@ -68,7 +68,7 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
         {perChar.map((char) => {
           const pct = char.potential > 0 ? Math.round((char.earned / char.potential) * 100) : 0
           return (
-            <div key={char.name} className="grid grid-cols-[140px_1fr_140px] items-center px-4 py-3 gap-0">
+            <div key={char.name} className="grid grid-cols-[160px_1fr_180px] items-center px-4 py-3 gap-0">
               {/* Section 1: Character */}
               <div className="min-w-0 pr-4 border-r border-gray-800">
                 <p className="text-sm font-medium text-white truncate">{char.name}</p>
@@ -76,7 +76,7 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
               </div>
 
               {/* Section 2: Raids */}
-              <div className="flex items-center gap-2 pl-8 pr-4 flex-wrap border-r border-gray-800">
+              <div className="flex items-center gap-2 pl-14 pr-4 flex-wrap border-r border-gray-800">
                 {char.goldRaids.length === 0 ? (
                   <span className="text-xs text-gray-600">—</span>
                 ) : (
@@ -100,7 +100,7 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
               </div>
 
               {/* Section 3: Gold + split progress bar */}
-              <div className="pl-4 space-y-1.5">
+              <div className="pl-2 space-y-1.5">
                 <div className="flex items-baseline justify-between gap-1">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-sm font-semibold text-yellow-400">
