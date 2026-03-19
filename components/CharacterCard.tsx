@@ -6,10 +6,9 @@ import {
   CardContent,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { RaidBadge } from "@/components/RaidBadge"
 import { RaidEditor } from "@/components/RaidEditor"
 import { cn } from "@/lib/utils"
-import { getRaidGold, MAX_GOLD_RAIDS, isRaidBound } from "@/lib/raids"
+import { getRaidGold, MAX_GOLD_RAIDS, isRaidBound, getRaidGroup, RAID_GROUP_COLORS } from "@/lib/raids"
 import { Pencil } from "lucide-react"
 
 const CLASS_COLOR: Record<string, string> = {
@@ -241,6 +240,9 @@ export function CharacterCard({
             {localSelections.map((selection) => {
               const isGoldRaid = goldRaidNames.has(selection.raidName)
               const gold = getRaidGold(selection.raidName)
+              const bound = isRaidBound(selection.raidName)
+              const group = getRaidGroup(selection.raidName)
+              const textColor = group ? RAID_GROUP_COLORS[group]?.text : "text-gray-200"
               return (
                 <button
                   key={selection.raidName}
@@ -249,23 +251,26 @@ export function CharacterCard({
                     handleToggle(selection.raidName)
                   }}
                   disabled={editMode}
-                  className="flex items-center justify-between w-full rounded-md border border-gray-700 px-2 py-1 text-xs font-medium transition-all disabled:cursor-default hover:border-gray-600"
+                  className={cn(
+                    "flex items-center justify-between w-full rounded-md border px-2 py-1 text-xs font-medium transition-all disabled:cursor-default",
+                    selection.isCompleted
+                      ? "border-gray-700/40 bg-gray-800/40"
+                      : "border-slate-700/60 bg-slate-800/60 hover:bg-slate-700/60"
+                  )}
                 >
                   <span className={cn(
-                    "flex items-center gap-1",
-                    selection.isCompleted && "line-through text-gray-500"
+                    selection.isCompleted
+                      ? "text-gray-600 line-through"
+                      : textColor ?? "text-gray-200"
                   )}>
-                    {selection.isCompleted
-                      ? <span className="text-gray-500">{selection.raidName}</span>
-                      : <RaidBadge raidName={selection.raidName} />
-                    }
+                    {selection.raidName}
                   </span>
                   {isGoldRaid && gold > 0 && (
                     <span className={cn(
                       "font-normal ml-auto",
-                      isRaidBound(selection.raidName)
-                        ? selection.isCompleted ? "text-violet-700" : "text-violet-400"
-                        : selection.isCompleted ? "text-yellow-700" : "text-yellow-400"
+                      bound
+                        ? selection.isCompleted ? "text-violet-800" : "text-violet-400"
+                        : selection.isCompleted ? "text-yellow-800" : "text-yellow-400"
                     )}>
                       {gold.toLocaleString()}g
                     </span>

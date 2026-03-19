@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { RaidBadge } from "@/components/RaidBadge"
-import { RAID_GROUPS, RAID_GROUP_COLORS, getRaidGold, getRaidGroup } from "@/lib/raids"
+import { RAID_GROUPS, RAID_GROUP_COLORS, getRaidGold, getRaidGroup, isRaidBound } from "@/lib/raids"
 import { Trash2, Plus, UserPlus, UserMinus } from "lucide-react"
 
 interface RaidSelection {
@@ -526,7 +526,11 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
                                   </span>
                                   <div className="flex items-center gap-1.5">
                                     {gold > 0 && (
-                                      <span className={r.isCompleted ? "text-gray-700" : "text-yellow-500"}>
+                                      <span className={
+                                        r.isCompleted
+                                          ? isRaidBound(r.raidName) ? "text-violet-800" : "text-gray-700"
+                                          : isRaidBound(r.raidName) ? "text-violet-400" : "text-yellow-500"
+                                      }>
                                         {gold.toLocaleString()}g
                                       </span>
                                     )}
