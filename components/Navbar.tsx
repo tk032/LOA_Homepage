@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useSession, signOut } from "next-auth/react"
+import Image from "next/image"
+import { useSession, signOut, signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Sword } from "lucide-react"
 
@@ -33,23 +34,32 @@ export function Navbar() {
               >
                 그룹
               </Link>
-              <Link
-                href="/dashboard"
-                className="rounded-md px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-              >
-                내 캐릭터
-              </Link>
             </div>
           )}
         </div>
         <div className="flex items-center gap-3">
           {status === "loading" ? (
-            <div className="h-8 w-20 animate-pulse rounded bg-gray-800" />
+            <div className="h-8 w-24 animate-pulse rounded bg-gray-800" />
           ) : session ? (
             <>
-              <span className="text-sm text-gray-400">
-                {session.user.name ?? session.user.username}
-              </span>
+              <div className="flex items-center gap-2">
+                {session.user.image ? (
+                  <Image
+                    src={session.user.image}
+                    alt={session.user.name ?? ""}
+                    width={28}
+                    height={28}
+                    className="rounded-full"
+                  />
+                ) : (
+                  <div className="h-7 w-7 rounded-full bg-[#5865F2] flex items-center justify-center text-xs font-bold text-white">
+                    {(session.user.name ?? "?")[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm text-gray-300">
+                  {session.user.name ?? session.user.username}
+                </span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -60,25 +70,13 @@ export function Navbar() {
               </Button>
             </>
           ) : (
-            <>
-              <Link href="/login">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-300 hover:text-white"
-                >
-                  로그인
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  회원가입
-                </Button>
-              </Link>
-            </>
+            <Button
+              size="sm"
+              onClick={() => signIn("discord", { callbackUrl: "/dashboard" })}
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+            >
+              Discord 로그인
+            </Button>
           )}
         </div>
       </div>

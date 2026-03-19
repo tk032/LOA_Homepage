@@ -2,41 +2,13 @@
 
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Sword } from "lucide-react"
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    try {
-      const result = await signIn("credentials", {
-        username,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setError("아이디 또는 비밀번호가 올바르지 않습니다.")
-      } else {
-        router.push("/dashboard")
-        router.refresh()
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [agreed, setAgreed] = useState(false)
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-3.5rem)] px-4">
@@ -45,59 +17,47 @@ export default function LoginPage() {
           <div className="flex justify-center mb-2">
             <Sword className="h-8 w-8 text-blue-400" />
           </div>
-          <CardTitle className="text-white text-xl">로그인</CardTitle>
+          <CardTitle className="text-white text-xl">LOA 레이드</CardTitle>
           <CardDescription className="text-gray-400">
-            LOA 레이드 관리 시스템에 로그인하세요
+            Discord 계정으로 로그인하세요
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-300" htmlFor="username">
-                아이디
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                autoComplete="username"
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="아이디를 입력하세요"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-300" htmlFor="password">
-                비밀번호
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="비밀번호를 입력하세요"
-              />
-            </div>
-            {error && (
-              <p className="text-sm text-red-400">{error}</p>
-            )}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {loading ? "로그인 중..." : "로그인"}
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-gray-400">
-            계정이 없으신가요?{" "}
-            <Link href="/register" className="text-blue-400 hover:text-blue-300">
-              회원가입
-            </Link>
+        <CardContent className="space-y-4">
+          {/* 동의 체크박스 */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-blue-500 cursor-pointer"
+            />
+            <span className="text-xs text-gray-400 leading-relaxed group-hover:text-gray-300 transition-colors">
+              <Link
+                href="/privacy"
+                target="_blank"
+                className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                개인정보 처리방침
+              </Link>
+              에 동의합니다. Discord 사용자명과 프로필 사진이 서비스 내 그룹 멤버에게 공개됩니다.
+            </span>
+          </label>
+
+          {/* Discord 로그인 버튼 */}
+          <Button
+            onClick={() => signIn("discord", { callbackUrl: "/dashboard" })}
+            disabled={!agreed}
+            className="w-full bg-[#5865F2] hover:bg-[#4752C4] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5"
+          >
+            <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+            </svg>
+            Discord로 로그인
+          </Button>
+
+          <p className="text-center text-xs text-gray-500">
+            처음 로그인하면 자동으로 계정이 만들어집니다
           </p>
         </CardContent>
       </Card>
