@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef } from "react"
-import Image from "next/image"
 import {
   Card,
   CardContent,
@@ -11,7 +10,7 @@ import { RaidBadge } from "@/components/RaidBadge"
 import { RaidEditor } from "@/components/RaidEditor"
 import { cn } from "@/lib/utils"
 import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
-import { ChevronUp, ChevronDown, Pencil } from "lucide-react"
+import { Pencil } from "lucide-react"
 
 const CLASS_COLOR: Record<string, string> = {
   워로드: "#e74c3c", 버서커: "#c0392b", 홀리나이트: "#f39c12", 슬레이어: "#e67e22",
@@ -22,19 +21,6 @@ const CLASS_COLOR: Record<string, string> = {
   바드: "#9b59b6", 소서리스: "#3498db", 아르카나: "#8e44ad", 서머너: "#2980b9",
   암살자: "#555", 스피어베어러: "#7f8c8d", 블레이드: "#1abc9c", 데모닉: "#c0392b",
   도화가: "#e91e8c", 기상술사: "#00bcd4",
-}
-
-function ClassPortrait({ className }: { className: string }) {
-  const color = CLASS_COLOR[className] ?? "#6b7280"
-  return (
-    <div
-      className="w-16 rounded-lg flex items-center justify-center text-xl font-bold text-white shrink-0 shadow self-stretch"
-      style={{ backgroundColor: color, minHeight: "5rem" }}
-      title={className}
-    >
-      {className.slice(0, 1)}
-    </div>
-  )
 }
 
 interface RaidSelection {
@@ -57,29 +43,33 @@ interface CharacterCardProps {
   character: Character
   weekStart: string
   onToggleComplete?: (characterId: string, raidName: string, weekStart: string, isCompleted: boolean) => Promise<void>
-  onDelete?: (characterId: string) => void
+  onRaidUpdate?: (characterId: string, raids: RaidSelection[]) => void
+  // Edit mode
   editMode?: boolean
   isSelected?: boolean
   onSelect?: (characterId: string) => void
-  canMoveUp?: boolean
-  canMoveDown?: boolean
-  onMoveUp?: (characterId: string) => void
-  onMoveDown?: (characterId: string) => void
-  onRaidUpdate?: (characterId: string, raids: RaidSelection[]) => void
+  isDragging?: boolean
+  isDragOver?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragEnd?: (e: React.DragEvent) => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
 }
 
 export function CharacterCard({
   character,
   weekStart,
   onToggleComplete,
+  onRaidUpdate,
   editMode = false,
   isSelected = false,
   onSelect,
-  canMoveUp = false,
-  canMoveDown = false,
-  onMoveUp,
-  onMoveDown,
-  onRaidUpdate,
+  isDragging = false,
+  isDragOver = false,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
 }: CharacterCardProps) {
   const [localSelections, setLocalSelections] = useState<RaidSelection[]>(character.raidSelections)
   const [showRaidEditor, setShowRaidEditor] = useState(false)
@@ -132,88 +122,81 @@ export function CharacterCard({
     onRaidUpdate?.(character.id, newSelections)
   }
 
+  const classColor = CLASS_COLOR[character.characterClass] ?? "#6b7280"
+
   return (
-    <Card className={cn(
-      "bg-gray-900 border-gray-700 transition-colors overflow-hidden",
-      editMode && isSelected && "border-blue-500 bg-gray-800/80"
-    )}>
-      {/* Top section: portrait + info */}
-      <div className="flex gap-0">
-        {/* Portrait image */}
-        <div className="relative shrink-0">
-          {editMode && (
-            <div className="absolute top-1.5 left-1.5 z-10">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onSelect?.(character.id)}
-                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 cursor-pointer"
-              />
+    <Card
+      draggable={editMode}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onClick={editMode ? () => onSelect?.(character.id) : undefined}
+      className={cn(
+        "bg-gray-900 border-gray-700 transition-all overflow-hidden",
+        editMode && "cursor-grab active:cursor-grabbing select-none",
+        editMode && isSelected && "border-blue-500 ring-2 ring-blue-500/40 bg-blue-950/30",
+        isDragOver && !isDragging && "border-blue-400 ring-2 ring-blue-400/50 scale-[1.02]",
+        isDragging && "opacity-40 scale-95"
+      )}
+    >
+      {/* Top: portrait + info */}
+      <div className="flex">
+        {/* Portrait */}
+        <div className="relative shrink-0 w-20 h-24 overflow-hidden border-r border-gray-700">
+          {character.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={character.imageUrl}
+              alt={character.name}
+              className="w-full h-full object-cover object-top"
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center"
+              style={{ backgroundColor: classColor }}
+            >
+              <span className="text-2xl font-bold text-white">{character.characterClass.slice(0, 1)}</span>
             </div>
           )}
-          {character.imageUrl ? (
-            <div className="w-20 h-24 overflow-hidden bg-gray-800 border-r border-gray-700">
-              <Image
-                src={character.imageUrl}
-                alt={character.name}
-                width={80}
-                height={96}
-                className="object-cover object-top w-full h-full"
-              />
-            </div>
-          ) : (
-            <div className="w-20 h-24 border-r border-gray-700 flex items-center justify-center"
-              style={{ backgroundColor: CLASS_COLOR[character.characterClass] ?? "#6b7280" }}>
-              <span className="text-2xl font-bold text-white">{character.characterClass.slice(0, 1)}</span>
+          {/* Selected overlay */}
+          {editMode && isSelected && (
+            <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Character info */}
+        {/* Info */}
         <div className="flex-1 min-w-0 p-3 flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between gap-1">
               <span className="font-bold text-white text-sm leading-tight truncate">{character.name}</span>
-              <div className="flex items-center gap-0.5 shrink-0">
-                {/* Pencil always visible */}
-                <button
-                  onClick={() => setShowRaidEditor((v) => !v)}
-                  className={cn(
-                    "p-1 rounded transition-colors",
-                    showRaidEditor
-                      ? "text-blue-400 bg-gray-700"
-                      : "text-gray-500 hover:text-gray-300 hover:bg-gray-700"
-                  )}
-                  title="레이드 편집"
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
-                {/* ↑↓ only in edit mode */}
-                {editMode && (
-                  <>
-                    <button
-                      onClick={() => onMoveUp?.(character.id)}
-                      disabled={!canMoveUp}
-                      className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => onMoveDown?.(character.id)}
-                      disabled={!canMoveDown}
-                      className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
-                  </>
+              {/* Pencil always visible — stops card click in edit mode from bubbling */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowRaidEditor((v) => !v)
+                }}
+                className={cn(
+                  "shrink-0 p-1 rounded transition-colors",
+                  showRaidEditor
+                    ? "text-blue-400 bg-gray-700"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-700"
                 )}
-              </div>
+                title="레이드 편집"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{character.characterClass}</p>
             <p className="text-xs font-medium text-blue-400 mt-0.5">{character.itemLevel.toLocaleString()}</p>
           </div>
 
-          {/* Progress bar */}
           {total > 0 && (
             <div className="mt-2 space-y-1">
               <div className="flex items-center justify-between text-xs text-gray-500">
@@ -231,9 +214,8 @@ export function CharacterCard({
         </div>
       </div>
 
-      <CardContent className="px-3 pb-3 pt-2 space-y-2">
-        {/* Inline raid editor */}
-        {showRaidEditor && (
+      <CardContent className="px-3 pb-3 pt-2">
+        {showRaidEditor ? (
           <RaidEditor
             characterId={character.id}
             itemLevel={character.itemLevel}
@@ -242,10 +224,7 @@ export function CharacterCard({
             onSave={handleRaidEditorSave}
             onCancel={() => setShowRaidEditor(false)}
           />
-        )}
-
-        {/* Raid list - one per line */}
-        {!showRaidEditor && total > 0 && (
+        ) : total > 0 ? (
           <div className="flex flex-col gap-1">
             {localSelections.map((selection) => {
               const isGoldRaid = goldRaidNames.has(selection.raidName)
@@ -253,20 +232,21 @@ export function CharacterCard({
               return (
                 <button
                   key={selection.raidName}
-                  onClick={() => handleToggle(selection.raidName)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleToggle(selection.raidName)
+                  }}
                   disabled={editMode}
-                  className="flex items-center justify-between w-full rounded-md border px-2 py-1 text-xs font-medium transition-all disabled:cursor-default"
-                  style={{}}
+                  className="flex items-center justify-between w-full rounded-md border border-gray-700 px-2 py-1 text-xs font-medium transition-all disabled:cursor-default hover:border-gray-600"
                 >
                   <span className={cn(
                     "flex items-center gap-1",
-                    selection.isCompleted ? "line-through text-gray-500" : ""
+                    selection.isCompleted && "line-through text-gray-500"
                   )}>
-                    {selection.isCompleted ? (
-                      <span className="text-gray-500">{selection.raidName}</span>
-                    ) : (
-                      <RaidBadge raidName={selection.raidName} />
-                    )}
+                    {selection.isCompleted
+                      ? <span className="text-gray-500">{selection.raidName}</span>
+                      : <RaidBadge raidName={selection.raidName} />
+                    }
                   </span>
                   {isGoldRaid && gold > 0 && (
                     <span className={cn(
@@ -280,9 +260,7 @@ export function CharacterCard({
               )
             })}
           </div>
-        )}
-
-        {!showRaidEditor && total === 0 && (
+        ) : (
           <p className="text-xs text-gray-500">이번 주 레이드가 없습니다.</p>
         )}
       </CardContent>

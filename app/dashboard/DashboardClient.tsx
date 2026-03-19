@@ -38,6 +38,8 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   // Character import / search state
   const [searchName, setSearchName] = useState("")
@@ -118,26 +120,35 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
     })
   }
 
-  function handleMoveUp(characterId: string) {
-    setCharacters((prev) => {
-      const idx = prev.findIndex((c) => c.id === characterId)
-      if (idx <= 0) return prev
-      const next = [...prev]
-      ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
-      handleReorder(next)
-      return next
-    })
+  function handleDragStart(id: string) {
+    setDraggedId(id)
   }
 
-  function handleMoveDown(characterId: string) {
-    setCharacters((prev) => {
-      const idx = prev.findIndex((c) => c.id === characterId)
-      if (idx < 0 || idx >= prev.length - 1) return prev
-      const next = [...prev]
-      ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
-      handleReorder(next)
-      return next
-    })
+  function handleDragOver(e: React.DragEvent, id: string) {
+    e.preventDefault()
+    if (id !== draggedId) setDragOverId(id)
+  }
+
+  function handleDrop(e: React.DragEvent, targetId: string) {
+    e.preventDefault()
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null)
+      setDragOverId(null)
+      return
+    }
+    const next = [...characters]
+    const fromIdx = next.findIndex((c) => c.id === draggedId)
+    const toIdx = next.findIndex((c) => c.id === targetId)
+    const [moved] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, moved)
+    handleReorder(next)
+    setDraggedId(null)
+    setDragOverId(null)
+  }
+
+  function handleDragEnd() {
+    setDraggedId(null)
+    setDragOverId(null)
   }
 
   function handleRaidUpdate(characterId: string, raids: RaidSelection[]) {
@@ -345,21 +356,22 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {characters.map((character, idx) => (
+            {characters.map((character) => (
               <CharacterCard
                 key={character.id}
                 character={character}
                 weekStart={weekStart}
                 onToggleComplete={handleToggleComplete}
-                onDelete={handleDelete}
+                onRaidUpdate={handleRaidUpdate}
                 editMode={editMode}
                 isSelected={selectedIds.has(character.id)}
                 onSelect={handleSelect}
-                canMoveUp={idx > 0}
-                canMoveDown={idx < characters.length - 1}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
-                onRaidUpdate={handleRaidUpdate}
+                isDragging={draggedId === character.id}
+                isDragOver={dragOverId === character.id}
+                onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; handleDragStart(character.id) }}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => handleDragOver(e, character.id)}
+                onDrop={(e) => handleDrop(e, character.id)}
               />
             ))}
           </div>
