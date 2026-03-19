@@ -2,13 +2,13 @@ export const MAX_GOLD_RAIDS = 3
 
 export const RAID_GROUPS: Record<
   string,
-  { raids: { name: string; minLevel: number; partySize: number; gold: number }[] }
+  { raids: { name: string; minLevel: number; partySize: number; gold: number; isBound?: boolean }[] }
 > = {
   "지평의 성당": {
     raids: [
-      { name: "지평의 성당 3단계", minLevel: 1750, partySize: 4, gold: 50000 },
-      { name: "지평의 성당 2단계", minLevel: 1720, partySize: 4, gold: 40000 },
-      { name: "지평의 성당 1단계", minLevel: 1700, partySize: 4, gold: 30000 },
+      { name: "지평의 성당 3단계", minLevel: 1750, partySize: 4, gold: 50000, isBound: true },
+      { name: "지평의 성당 2단계", minLevel: 1720, partySize: 4, gold: 40000, isBound: true },
+      { name: "지평의 성당 1단계", minLevel: 1700, partySize: 4, gold: 30000, isBound: true },
     ],
   },
   세르카: {
@@ -48,6 +48,17 @@ export const RAID_GROUPS: Record<
       { name: "노기르", minLevel: 1660, partySize: 8, gold: 11500 },
     ],
   },
+}
+
+/**
+ * Returns true if the raid gives bound gold (귀속골드).
+ */
+export function isRaidBound(raidName: string): boolean {
+  for (const groupData of Object.values(RAID_GROUPS)) {
+    const raid = groupData.raids.find((r) => r.name === raidName)
+    if (raid) return raid.isBound === true
+  }
+  return false
 }
 
 /**

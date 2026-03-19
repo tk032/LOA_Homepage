@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { RaidBadge } from "@/components/RaidBadge"
 import { RaidEditor } from "@/components/RaidEditor"
 import { cn } from "@/lib/utils"
-import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
+import { getRaidGold, MAX_GOLD_RAIDS, isRaidBound } from "@/lib/raids"
 import { Pencil } from "lucide-react"
 
 const CLASS_COLOR: Record<string, string> = {
@@ -90,6 +90,10 @@ export function CharacterCard({
 
   const earnedGold = localSelections
     .filter((r) => r.isCompleted && goldRaidNames.has(r.raidName))
+    .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
+
+  const earnedBoundGold = localSelections
+    .filter((r) => r.isCompleted && goldRaidNames.has(r.raidName) && isRaidBound(r.raidName))
     .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
 
   const potentialGold = localSelections
@@ -202,8 +206,16 @@ export function CharacterCard({
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>{completed}/{total}</span>
                 {potentialGold > 0 && (
-                  <span>
-                    <span className="text-yellow-400 font-medium">{earnedGold.toLocaleString()}g</span>
+                  <span className="flex items-center gap-1">
+                    {earnedGold - earnedBoundGold > 0 && (
+                      <span className="text-yellow-400 font-medium">{(earnedGold - earnedBoundGold).toLocaleString()}g</span>
+                    )}
+                    {earnedBoundGold > 0 && (
+                      <span className="text-violet-400 font-medium">+{earnedBoundGold.toLocaleString()}g</span>
+                    )}
+                    {earnedGold === 0 && (
+                      <span className="text-yellow-400 font-medium">0g</span>
+                    )}
                     <span className="text-gray-600"> / {potentialGold.toLocaleString()}g</span>
                   </span>
                 )}
@@ -251,7 +263,9 @@ export function CharacterCard({
                   {isGoldRaid && gold > 0 && (
                     <span className={cn(
                       "font-normal ml-auto",
-                      selection.isCompleted ? "text-yellow-700" : "text-yellow-400"
+                      isRaidBound(selection.raidName)
+                        ? selection.isCompleted ? "text-violet-700" : "text-violet-400"
+                        : selection.isCompleted ? "text-yellow-700" : "text-yellow-400"
                     )}>
                       {gold.toLocaleString()}g
                     </span>

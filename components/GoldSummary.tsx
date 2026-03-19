@@ -1,6 +1,6 @@
 "use client"
 
-import { getRaidGold, MAX_GOLD_RAIDS, getRaidGroup, RAID_GROUP_COLORS } from "@/lib/raids"
+import { getRaidGold, MAX_GOLD_RAIDS, getRaidGroup, RAID_GROUP_COLORS, isRaidBound } from "@/lib/raids"
 
 interface RaidSelection {
   raidName: string
@@ -33,9 +33,11 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
     const goldRaids = getGoldRaids(char.raidSelections)
     const earned = goldRaids.filter((r) => r.isCompleted).reduce((s, r) => s + getRaidGold(r.raidName), 0)
     const potential = goldRaids.reduce((s, r) => s + getRaidGold(r.raidName), 0)
+    const earnedBound = goldRaids.filter((r) => r.isCompleted && isRaidBound(r.raidName)).reduce((s, r) => s + getRaidGold(r.raidName), 0)
+    const potentialBound = goldRaids.filter((r) => isRaidBound(r.raidName)).reduce((s, r) => s + getRaidGold(r.raidName), 0)
     totalEarned += earned
     totalPotential += potential
-    return { ...char, goldRaids, earned, potential }
+    return { ...char, goldRaids, earned, potential, earnedBound, potentialBound }
   })
 
   const overallPct = totalPotential > 0 ? Math.round((totalEarned / totalPotential) * 100) : 0
@@ -97,19 +99,45 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
                 )}
               </div>
 
-              {/* Section 3: Gold + progress bar */}
+              {/* Section 3: Gold + split progress bar */}
               <div className="pl-4 space-y-1.5">
                 <div className="flex items-baseline justify-between gap-1">
-                  <span className="text-sm font-semibold text-yellow-400">{char.earned.toLocaleString()}g</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-sm font-semibold text-yellow-400">
+                      {(char.earned - char.earnedBound).toLocaleString()}g
+                    </span>
+                    {char.earnedBound > 0 && (
+                      <span className="text-sm font-semibold text-violet-400">
+                        +{char.earnedBound.toLocaleString()}g
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-gray-600">{pct}%</span>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-yellow-400 transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
+                {/* Split bar: yellow = normal, violet = bound */}
+                <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden flex">
+                  {char.potential > 0 && (
+                    <>
+                      <div
+                        className="h-full bg-yellow-400 transition-all"
+                        style={{ width: `${Math.round(((char.earned - char.earnedBound) / char.potential) * 100)}%` }}
+                      />
+                      <div
+                        className="h-full bg-violet-400 transition-all"
+                        style={{ width: `${Math.round((char.earnedBound / char.potential) * 100)}%` }}
+                      />
+                    </>
+                  )}
                 </div>
-                <p className="text-xs text-gray-600">/ {char.potential.toLocaleString()}g</p>
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <span>/ {char.potential.toLocaleString()}g</span>
+                  {char.potentialBound > 0 && (
+                    <span className="flex items-center gap-0.5">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400" />
+                      귀속
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )
