@@ -15,9 +15,10 @@ model User {
   image       String?
   createdAt   DateTime @default(now())
 
-  characters   Character[]
-  groupMembers GroupMember[]
-  runMembers   RunMember[]
+  characters      Character[]
+  groupMembers    GroupMember[]
+  runMembers      RunMember[]
+  runAttendances  RunAttendance[]
 }
 
 model Character {
@@ -55,6 +56,7 @@ model RaidSelection {
 model Group {
   id        String   @id @default(cuid())
   name      String   @unique
+  notice    String   @default("")
   createdAt DateTime @default(now())
 
   members   GroupMember[]
@@ -85,7 +87,21 @@ model GroupRun {
   groupId   String
   group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
-  members   RunMember[]
+  members     RunMember[]
+  attendances RunAttendance[]
+}
+
+model RunAttendance {
+  id     String @id @default(cuid())
+  status String @default("pending")
+
+  runId  String
+  run    GroupRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, userId])
 }
 
 model RunMember {

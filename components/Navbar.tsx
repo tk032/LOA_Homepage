@@ -3,13 +3,22 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useSession, signOut, signIn } from "next-auth/react"
+import { useTheme } from "next-themes"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Sun, Moon } from "lucide-react"
 
 export function Navbar() {
   const { data: session, status } = useSession()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-800 bg-gray-950/90 backdrop-blur-sm">
+    <nav className="sticky top-0 z-50 border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-6">
           <Link
@@ -24,13 +33,13 @@ export function Navbar() {
             <div className="flex items-center gap-1">
               <Link
                 href="/dashboard"
-                className="rounded-md px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+                className="rounded-md px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 대시보드
               </Link>
               <Link
                 href="/groups"
-                className="rounded-md px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+                className="rounded-md px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 그룹
               </Link>
@@ -38,8 +47,21 @@ export function Navbar() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="rounded-md p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+              aria-label="테마 전환"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
+          )}
           {status === "loading" ? (
-            <div className="h-8 w-24 animate-pulse rounded bg-gray-800" />
+            <div className="h-8 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
           ) : session ? (
             <>
               <div className="flex items-center gap-2">
@@ -56,7 +78,7 @@ export function Navbar() {
                     {(session.user.name ?? "?")[0].toUpperCase()}
                   </div>
                 )}
-                <span className="text-sm text-gray-300">
+                <span className="text-sm text-gray-600 dark:text-gray-300">
                   {session.user.name ?? session.user.username}
                 </span>
               </div>
@@ -64,7 +86,7 @@ export function Navbar() {
                 variant="outline"
                 size="sm"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                className="border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
               >
                 로그아웃
               </Button>

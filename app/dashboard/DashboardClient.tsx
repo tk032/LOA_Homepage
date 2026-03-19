@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { CharacterCard } from "@/components/CharacterCard"
 import { GoldSummary } from "@/components/GoldSummary"
+import { GoldHistoryChart } from "@/components/GoldHistoryChart"
 import { Settings } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface RaidSelection {
   id: string
@@ -28,18 +30,41 @@ interface LostArkCharacter {
   ServerName: string
 }
 
+interface GoldHistoryEntry {
+  weekStart: string
+  earned: number
+  potential: number
+}
+
 interface DashboardClientProps {
   initialCharacters: Character[]
   weekStart: string
+  availableWeeks: string[]
 }
 
-export function DashboardClient({ initialCharacters, weekStart }: DashboardClientProps) {
+function weekRelativeLabel(weekStart: string, availableWeeks: string[]): string {
+  // availableWeeks is sorted desc (newest first)
+  const idx = availableWeeks.indexOf(weekStart)
+  if (idx === 0) return "이번 주"
+  if (idx === 1) return "1주 전"
+  if (idx === 2) return "2주 전"
+  return `${idx}주 전`
+}
+
+export function DashboardClient({ initialCharacters, weekStart, availableWeeks }: DashboardClientProps) {
   const [characters, setCharacters] = useState<Character[]>(initialCharacters)
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  // Week switcher state
+  const [selectedWeek, setSelectedWeek] = useState<string>(weekStart)
+  const [isLoadingWeek, setIsLoadingWeek] = useState(false)
+
+  // Gold history
+  const [goldHistory, setGoldHistory] = useState<GoldHistoryEntry[]>([])
 
   // Character import / search state
   const [searchName, setSearchName] = useState("")
@@ -48,6 +73,38 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
   const [isSearching, setIsSearching] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [searchError, setSearchError] = useState("")
+
+  // Fetch gold history on mount
+  useEffect(() => {
+    fetch("/api/characters/gold-history")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setGoldHistory(data as GoldHistoryEntry[]))
+      .catch(() => {})
+  }, [])
+
+  // When selectedWeek changes, fetch characters for that week
+  useEffect(() => {
+    if (selectedWeek === weekStart) {
+      setCharacters(initialCharacters)
+      return
+    }
+    setIsLoadingWeek(true)
+    fetch(`/api/characters?week=${encodeURIComponent(selectedWeek)}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) {
+          setCharacters(
+            (data as Character[]).map((c) => ({
+              ...c,
+              itemLevel: Number(c.itemLevel),
+            }))
+          )
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingWeek(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeek])
 
   async function handleToggleComplete(
     characterId: string,
@@ -88,15 +145,6 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
     } finally {
       setIsDeleting(false)
     }
-  }
-
-  function handleDelete(characterId: string) {
-    setCharacters((prev) => prev.filter((c) => c.id !== characterId))
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      next.delete(characterId)
-      return next
-    })
   }
 
   function handleSelect(characterId: string) {
@@ -233,10 +281,22 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
     }
   }
 
+  const isCurrentWeek = selectedWeek === weekStart
+
   return (
     <div className="space-y-6">
       {/* Gold Summary */}
       <GoldSummary characters={characters} />
+
+      {/* Gold History Chart */}
+      {goldHistory.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-gray-400">주간 골드 현황</h2>
+          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+            <GoldHistoryChart data={goldHistory} />
+          </div>
+        </section>
+      )}
 
       {/* Character search / import section */}
       <section className="space-y-3">
@@ -349,10 +409,38 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
           </div>
         </div>
 
-        {characters.length === 0 ? (
+        {/* Week switcher */}
+        {availableWeeks.length > 1 && (
+          <div className="flex gap-1.5 flex-wrap">
+            {availableWeeks.map((week) => (
+              <button
+                key={week}
+                onClick={() => setSelectedWeek(week)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  selectedWeek === week
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+                )}
+              >
+                {weekRelativeLabel(week, availableWeeks)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isLoadingWeek ? (
+          <div className="flex justify-center py-8">
+            <span className="text-sm text-gray-500">불러오는 중...</span>
+          </div>
+        ) : characters.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/50 p-8 text-center">
-            <p className="text-gray-400 text-sm">등록된 캐릭터가 없습니다.</p>
-            <p className="text-gray-500 text-xs mt-1">위에서 캐릭터 이름을 검색하여 추가하세요.</p>
+            <p className="text-gray-400 text-sm">
+              {isCurrentWeek ? "등록된 캐릭터가 없습니다." : "해당 주차에 레이드 기록이 없습니다."}
+            </p>
+            {isCurrentWeek && (
+              <p className="text-gray-500 text-xs mt-1">위에서 캐릭터 이름을 검색하여 추가하세요.</p>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -360,10 +448,10 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
               <CharacterCard
                 key={character.id}
                 character={character}
-                weekStart={weekStart}
-                onToggleComplete={handleToggleComplete}
-                onRaidUpdate={handleRaidUpdate}
-                editMode={editMode}
+                weekStart={selectedWeek}
+                onToggleComplete={isCurrentWeek ? handleToggleComplete : undefined}
+                onRaidUpdate={isCurrentWeek ? handleRaidUpdate : undefined}
+                editMode={isCurrentWeek && editMode}
                 isSelected={selectedIds.has(character.id)}
                 onSelect={handleSelect}
                 isDragging={draggedId === character.id}

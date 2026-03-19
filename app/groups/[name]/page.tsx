@@ -45,6 +45,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
           members: {
             include: { user: true },
           },
+          attendances: {
+            include: { user: true },
+          },
         },
         orderBy: { createdAt: "asc" },
       },
@@ -61,6 +64,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
   const groupData = {
     id: group.id,
     name: group.name,
+    notice: group.notice,
     weekStart,
     currentUserId: session.user.id,
     isMember,
@@ -94,6 +98,12 @@ export default async function GroupDetailPage({ params }: PageProps) {
         characterName: rm.characterName,
         itemLevel: Number(rm.itemLevel),
         displayName: rm.user.displayName,
+      })),
+      attendances: r.attendances.map((a) => ({
+        id: a.id,
+        userId: a.userId,
+        status: a.status,
+        displayName: a.user.displayName,
       })),
     })),
   }

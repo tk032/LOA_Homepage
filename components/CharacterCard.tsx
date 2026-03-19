@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { RaidEditor } from "@/components/RaidEditor"
 import { cn } from "@/lib/utils"
 import { getRaidGold, MAX_GOLD_RAIDS, isRaidBound, getRaidGroup, RAID_GROUP_COLORS } from "@/lib/raids"
-import { Pencil } from "lucide-react"
+import { Pencil, RotateCcw } from "lucide-react"
 
 const CLASS_COLOR: Record<string, string> = {
   워로드: "#e74c3c", 버서커: "#c0392b", 홀리나이트: "#f39c12", 슬레이어: "#e67e22",
@@ -72,6 +72,9 @@ export function CharacterCard({
 }: CharacterCardProps) {
   const [localSelections, setLocalSelections] = useState<RaidSelection[]>(character.raidSelections)
   const [showRaidEditor, setShowRaidEditor] = useState(false)
+  const [localItemLevel, setLocalItemLevel] = useState<number>(character.itemLevel)
+  const [localImageUrl, setLocalImageUrl] = useState<string | undefined>(character.imageUrl)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const desiredStateRef = useRef<Record<string, boolean>>({})
@@ -115,6 +118,24 @@ export function CharacterCard({
     }, 400)
   }
 
+  async function handleRefresh(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (isRefreshing) return
+    setIsRefreshing(true)
+    try {
+      const res = await fetch(`/api/characters/${character.id}/refresh`, { method: "POST" })
+      if (res.ok) {
+        const updated = await res.json() as { itemLevel: number; imageUrl?: string }
+        setLocalItemLevel(Number(updated.itemLevel))
+        if (updated.imageUrl) setLocalImageUrl(updated.imageUrl)
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   function handleRaidEditorSave(raids: string[]) {
     const newSelections: RaidSelection[] = raids.map((raidName) => {
       const existing = localSelections.find((r) => r.raidName === raidName)
@@ -147,10 +168,10 @@ export function CharacterCard({
       <div className="flex">
         {/* Portrait */}
         <div className="relative shrink-0 w-20 h-24 overflow-hidden border-r border-gray-700">
-          {character.imageUrl ? (
+          {localImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={character.imageUrl}
+              src={localImageUrl}
               alt={character.name}
               className="w-full h-full object-cover object-top"
             />
@@ -179,6 +200,15 @@ export function CharacterCard({
           <div>
             <div className="flex items-start justify-between gap-1">
               <span className="font-bold text-white text-sm leading-tight truncate">{character.name}</span>
+              {/* Refresh button */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="shrink-0 p-1 rounded transition-colors text-gray-500 hover:text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="아이템레벨 갱신"
+              >
+                <RotateCcw className={cn("h-3 w-3", isRefreshing && "animate-spin")} />
+              </button>
               {/* Pencil always visible — stops card click in edit mode from bubbling */}
               <button
                 onClick={(e) => {
@@ -197,7 +227,7 @@ export function CharacterCard({
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{character.characterClass}</p>
-            <p className="text-xs font-medium text-blue-400 mt-0.5">{character.itemLevel.toLocaleString()}</p>
+            <p className="text-xs font-medium text-blue-400 mt-0.5">{localItemLevel.toLocaleString()}</p>
           </div>
 
           {total > 0 && (

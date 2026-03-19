@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { getWeekStart } from "@/lib/raids"
 import { WeekLabel } from "@/components/WeekLabel"
+import { WeekResetCountdown } from "@/components/WeekResetCountdown"
 import { DashboardClient } from "./DashboardClient"
 import Link from "next/link"
 
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
 
   const weekStart = getWeekStart()
 
-  const [characters, groupMemberships] = await Promise.all([
+  const [characters, groupMemberships, weekRows] = await Promise.all([
     prisma.character.findMany({
       where: { userId: session.user.id, isActive: true },
       include: {
@@ -37,6 +38,15 @@ export default async function DashboardPage() {
         },
       },
     }),
+    prisma.raidSelection.findMany({
+      where: {
+        character: { userId: session.user.id },
+      },
+      select: { weekStart: true },
+      distinct: ["weekStart"],
+      orderBy: { weekStart: "desc" },
+      take: 8,
+    }),
   ])
 
   return (
@@ -48,7 +58,10 @@ export default async function DashboardPage() {
             안녕하세요, {session.user.name ?? session.user.username}님
           </p>
         </div>
-        <WeekLabel weekStart={weekStart} />
+        <div className="flex flex-col items-end gap-1">
+          <WeekLabel weekStart={weekStart} />
+          <WeekResetCountdown />
+        </div>
       </div>
 
       {/* Characters Section */}
@@ -64,6 +77,9 @@ export default async function DashboardPage() {
           })),
         }))}
         weekStart={weekStart}
+        availableWeeks={weekRows.map((r) => r.weekStart).includes(weekStart)
+          ? weekRows.map((r) => r.weekStart)
+          : [weekStart, ...weekRows.map((r) => r.weekStart)]}
       />
 
       {/* Groups Section */}

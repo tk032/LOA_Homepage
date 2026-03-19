@@ -6,13 +6,15 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getWeekStart, RAID_GROUPS, getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 })
   }
 
-  const weekStart = getWeekStart()
+  const { searchParams } = new URL(req.url)
+  const weekParam = searchParams.get("week")
+  const weekStart = weekParam ?? getWeekStart()
 
   const characters = await prisma.character.findMany({
     where: { userId: session.user.id, isActive: true },
