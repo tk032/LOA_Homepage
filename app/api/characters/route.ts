@@ -64,11 +64,35 @@ export async function POST(req: NextRequest) {
     eligibleRaids.sort((a, b) => b.gold - a.gold)
     const goldRaids = eligibleRaids.slice(0, MAX_GOLD_RAIDS)
 
+    // Fetch character profile image from Lost Ark API
+    let imageUrl = ""
+    try {
+      const apiKey = process.env.LOSTARK_API_KEY
+      if (apiKey) {
+        const profileRes = await fetch(
+          `https://developer-lostark.game.onstove.com/armories/characters/${encodeURIComponent(name)}/profiles`,
+          {
+            headers: {
+              Authorization: `bearer ${apiKey}`,
+              Accept: "application/json",
+            },
+          }
+        )
+        if (profileRes.ok) {
+          const profile = await profileRes.json() as { CharacterImage?: string }
+          imageUrl = profile?.CharacterImage ?? ""
+        }
+      }
+    } catch {
+      // Image fetch failure is non-fatal
+    }
+
     const character = await prisma.character.create({
       data: {
         name,
         characterClass,
         itemLevel,
+        imageUrl,
         userId: session.user.id,
         raidSelections: goldRaids.length > 0
           ? {

@@ -16,6 +16,7 @@ interface Character {
   name: string
   characterClass: string
   itemLevel: number
+  imageUrl?: string
   raidSelections: RaidSelection[]
 }
 

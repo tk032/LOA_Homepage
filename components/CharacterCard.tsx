@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import {
   Card,
   CardHeader,
@@ -49,6 +50,7 @@ interface Character {
   name: string
   characterClass: string
   itemLevel: number
+  imageUrl?: string
   raidSelections: RaidSelection[]
 }
 
@@ -106,7 +108,19 @@ export function CharacterCard({ character, weekStart, onToggleComplete }: Charac
     <Card className="bg-gray-900 border-gray-700">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">
-          <ClassIcon className={character.characterClass} />
+          {character.imageUrl ? (
+            <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 border-2 border-gray-700 bg-gray-800">
+              <Image
+                src={character.imageUrl}
+                alt={character.name}
+                width={48}
+                height={48}
+                className="object-cover object-top w-full h-full"
+              />
+            </div>
+          ) : (
+            <ClassIcon className={character.characterClass} />
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-white text-base truncate">{character.name}</CardTitle>
