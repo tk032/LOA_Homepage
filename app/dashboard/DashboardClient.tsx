@@ -153,7 +153,13 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
           <input
             type="text"
             value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
+            onChange={(e) => {
+              setSearchName(e.target.value)
+              if (!e.target.value.trim()) {
+                setSearchResults([])
+                setSearchError("")
+              }
+            }}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="캐릭터 이름 검색"
             className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
