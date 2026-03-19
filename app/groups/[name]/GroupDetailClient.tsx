@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { RaidBadge } from "@/components/RaidBadge"
-import { RAID_GROUPS } from "@/lib/raids"
+import { RAID_GROUPS, RAID_GROUP_COLORS, getRaidGold } from "@/lib/raids"
 import { Trash2, Plus, UserPlus, UserMinus } from "lucide-react"
 
 interface RaidSelection {
@@ -494,30 +494,56 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
                   <CardContent className="pt-0 space-y-3">
                     <Separator className="bg-gray-800" />
                     {member.characters.map((char) => (
-                      <div key={char.id} className="space-y-1.5">
-                        <div className="flex items-center justify-between">
+                      <div key={char.id} className="rounded-lg bg-gray-800/50 border border-gray-700/50 overflow-hidden">
+                        {/* Character header */}
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/50">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white">{char.name}</span>
-                            <span className="text-xs text-gray-400">{char.characterClass}</span>
+                            <span className="text-sm font-semibold text-white">{char.name}</span>
+                            <span className="text-xs text-gray-500">{char.characterClass}</span>
                           </div>
-                          <span className="text-xs text-blue-400">
-                            {char.itemLevel.toLocaleString()}
-                          </span>
+                          <span className="text-xs font-medium text-blue-400">{char.itemLevel.toLocaleString()}</span>
                         </div>
-                        {char.raidSelections.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {char.raidSelections.map((r) => (
-                              <span
-                                key={r.raidName}
-                                className={r.isCompleted ? "opacity-50" : ""}
-                              >
-                                <RaidBadge raidName={r.raidName} />
-                                {r.isCompleted && (
-                                  <span className="ml-1 text-xs text-gray-500">✓</span>
-                                )}
-                              </span>
-                            ))}
+                        {/* Raids */}
+                        {char.raidSelections.length > 0 ? (
+                          <div className="px-3 py-2 flex flex-col gap-1">
+                            {char.raidSelections.map((r) => {
+                              const group = r.raidName ? (() => {
+                                // inline getRaidGroup
+                                for (const [gName, gData] of Object.entries(RAID_GROUPS)) {
+                                  if (gData.raids.some((rd) => rd.name === r.raidName)) return gName
+                                }
+                                return null
+                              })() : null
+                              const colors = group ? RAID_GROUP_COLORS[group] : null
+                              const gold = getRaidGold(r.raidName)
+                              return (
+                                <div
+                                  key={r.raidName}
+                                  className={`flex items-center justify-between rounded-md border px-2 py-1 text-xs ${
+                                    r.isCompleted
+                                      ? "border-gray-700/50 bg-gray-700/30 text-gray-600"
+                                      : `${colors?.border ?? "border-gray-600/50"} ${colors?.bg ?? "bg-gray-700/40"}`
+                                  }`}
+                                >
+                                  <span className={r.isCompleted ? "line-through text-gray-600" : `font-medium ${colors?.text ?? "text-gray-200"}`}>
+                                    {r.raidName}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    {gold > 0 && (
+                                      <span className={r.isCompleted ? "text-gray-700" : "text-yellow-500"}>
+                                        {gold.toLocaleString()}g
+                                      </span>
+                                    )}
+                                    {r.isCompleted && (
+                                      <span className="text-green-600">✓</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
+                        ) : (
+                          <p className="px-3 py-2 text-xs text-gray-600">레이드 없음</p>
                         )}
                       </div>
                     ))}
