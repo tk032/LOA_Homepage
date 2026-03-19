@@ -17,12 +17,17 @@ export async function POST(
   const { name } = await params
   const groupName = decodeURIComponent(name)
 
-  const group = await prisma.group.findUnique({ where: { name: groupName } })
+  const group = await prisma.group.findUnique({
+    where: { name: groupName },
+    include: { members: { select: { userId: true } } },
+  })
   if (!group) {
-    return NextResponse.json(
-      { error: "그룹을 찾을 수 없습니다." },
-      { status: 404 }
-    )
+    return NextResponse.json({ error: "그룹을 찾을 수 없습니다." }, { status: 404 })
+  }
+
+  const isMember = group.members.some((m) => m.userId === session.user.id)
+  if (!isMember) {
+    return NextResponse.json({ error: "그룹 멤버만 초대할 수 있습니다." }, { status: 403 })
   }
 
   try {
@@ -85,12 +90,17 @@ export async function DELETE(
   const { name } = await params
   const groupName = decodeURIComponent(name)
 
-  const group = await prisma.group.findUnique({ where: { name: groupName } })
+  const group = await prisma.group.findUnique({
+    where: { name: groupName },
+    include: { members: { select: { userId: true } } },
+  })
   if (!group) {
-    return NextResponse.json(
-      { error: "그룹을 찾을 수 없습니다." },
-      { status: 404 }
-    )
+    return NextResponse.json({ error: "그룹을 찾을 수 없습니다." }, { status: 404 })
+  }
+
+  const isMember = group.members.some((m) => m.userId === session.user.id)
+  if (!isMember) {
+    return NextResponse.json({ error: "그룹 멤버만 내보내기 할 수 있습니다." }, { status: 403 })
   }
 
   try {

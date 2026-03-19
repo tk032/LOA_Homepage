@@ -39,8 +39,8 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   }
 
   const myMember = group.members.find((m) => m.userId === session.user.id)
-  if (!myMember || myMember.role !== "leader") {
-    return NextResponse.json({ error: "리더만 공지를 수정할 수 있습니다." }, { status: 403 })
+  if (!myMember) {
+    return NextResponse.json({ error: "그룹 멤버만 공지를 수정할 수 있습니다." }, { status: 403 })
   }
 
   const updated = await prisma.group.update({

@@ -43,19 +43,11 @@ interface RunMember {
   displayName: string
 }
 
-interface RunAttendance {
-  id: string
-  userId: string
-  status: string
-  displayName: string
-}
-
 interface Run {
   id: string
   raidName: string
   note: string
   members: RunMember[]
-  attendances: RunAttendance[]
 }
 
 interface GroupData {
@@ -73,6 +65,7 @@ interface GroupData {
 interface GroupDetailClientProps {
   group: GroupData
 }
+
 
 // Auto-party suggestion type
 interface SuggestedParty {
@@ -100,6 +93,8 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
   const [editingNotice, setEditingNotice] = useState(false)
   const [noticeText, setNoticeText] = useState(group.notice)
   const [savingNotice, setSavingNotice] = useState(false)
+
+  const canEdit = group.isMember
 
   // Auto party state
   const [showAutoParty, setShowAutoParty] = useState(false)
@@ -198,7 +193,6 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
             id: data.id,
             raidName: data.raidName,
             note: data.note,
-            attendances: [],
             members: data.members.map((rm: { id: string; userId: string; characterName: string; itemLevel: number; user: { displayName: string } }) => ({
               id: rm.id,
               userId: rm.userId,
@@ -233,7 +227,6 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
     }
   }
 
-  // Notice handlers
   async function handleSaveNotice() {
     setSavingNotice(true)
     try {
@@ -254,57 +247,6 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
   function handleCancelNotice() {
     setNoticeText(group.notice)
     setEditingNotice(false)
-  }
-
-  // Internal attendance upsert helper
-  async function upsertAttendance(runId: string, status: "attending" | "absent") {
-    const res = await fetch(`/api/runs/${runId}/attendance`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    })
-    if (res.ok) {
-      const updated = await res.json()
-      setGroup((prev) => ({
-        ...prev,
-        runs: prev.runs.map((run) => {
-          if (run.id !== runId) return run
-          const existing = run.attendances.find((a) => a.userId === updated.userId)
-          if (existing) {
-            return {
-              ...run,
-              attendances: run.attendances.map((a) =>
-                a.userId === updated.userId ? { ...a, status: updated.status } : a
-              ),
-            }
-          } else {
-            return {
-              ...run,
-              attendances: [
-                ...run.attendances,
-                {
-                  id: updated.id,
-                  userId: updated.userId,
-                  status: updated.status,
-                  displayName: updated.user.displayName,
-                },
-              ],
-            }
-          }
-        }),
-      }))
-    }
-  }
-
-  // Toggle attendance (toggle button in the per-member row)
-  async function handleAttendance(runId: string, currentStatus: string) {
-    const newStatus = currentStatus === "attending" ? "absent" : "attending"
-    await upsertAttendance(runId, newStatus)
-  }
-
-  // Set attendance directly (quick action buttons)
-  async function handleAttendanceSet(runId: string, status: "attending" | "absent") {
-    await upsertAttendance(runId, status)
   }
 
   // Auto party logic
@@ -382,7 +324,6 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
               id: data.id,
               raidName: data.raidName,
               note: data.note,
-              attendances: [],
               members: data.members.map((rm: { id: string; userId: string; characterName: string; itemLevel: number; user: { displayName: string } }) => ({
                 id: rm.id,
                 userId: rm.userId,
@@ -408,7 +349,7 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
   return (
     <div className="space-y-4">
       {/* Notice section */}
-      {(group.notice || group.myRole === "leader") && (
+      {(group.notice || canEdit) && (
         <div className="rounded-xl border border-amber-700/50 bg-amber-900/20 px-4 py-3">
           {editingNotice ? (
             <div className="space-y-2">
@@ -449,7 +390,7 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
             <div className="flex items-start gap-2">
               <span className="text-amber-300 shrink-0">📢</span>
               <p className="text-sm text-amber-200 flex-1 whitespace-pre-wrap">{group.notice}</p>
-              {group.myRole === "leader" && (
+              {canEdit && (
                 <button
                   onClick={() => { setNoticeText(group.notice); setEditingNotice(true) }}
                   className="text-amber-500 hover:text-amber-300 transition-colors shrink-0"
@@ -716,11 +657,6 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {group.runs.map((run) => {
-                const myAttendance = run.attendances.find((a) => a.userId === group.currentUserId)
-                const attendingCount = run.attendances.filter((a) => a.status === "attending").length
-                const absentCount = run.attendances.filter((a) => a.status === "absent").length
-                const pendingCount = group.members.length - run.attendances.filter((a) => a.status !== "pending").length
-
                 return (
                   <Card key={run.id} className="bg-gray-900 border-gray-800">
                     <CardHeader className="pb-2">
@@ -739,8 +675,7 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
                         <p className="text-xs text-gray-400 mt-1">{run.note}</p>
                       )}
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      {/* Members list */}
+                    <CardContent>
                       <div className="space-y-1">
                         {run.members.map((rm, idx) => (
                           <div key={rm.id} className="flex items-center gap-2 text-sm">
@@ -750,70 +685,6 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
                             <span className="text-gray-500 text-xs">{rm.displayName}</span>
                           </div>
                         ))}
-                      </div>
-
-                      {/* Attendance section */}
-                      <Separator className="bg-gray-800" />
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500 font-medium">출석 현황</span>
-                          <span className="text-xs text-gray-500">
-                            ✅ {attendingCount}명 / ❌ {absentCount}명 / ⏳ {pendingCount}명
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          {group.members.map((member) => {
-                            const attendance = run.attendances.find((a) => a.userId === member.userId)
-                            const status = attendance?.status ?? "pending"
-                            const isMe = member.userId === group.currentUserId
-                            return (
-                              <div key={member.userId} className="flex items-center justify-between text-xs">
-                                <span className="text-gray-400">{member.displayName}</span>
-                                <div className="flex items-center gap-1.5">
-                                  <span>
-                                    {status === "attending" ? "✅" : status === "absent" ? "❌" : "⏳"}
-                                  </span>
-                                  <span className={
-                                    status === "attending" ? "text-green-400" :
-                                    status === "absent" ? "text-red-400" :
-                                    "text-gray-500"
-                                  }>
-                                    {status === "attending" ? "참석" : status === "absent" ? "불참" : "미응답"}
-                                  </span>
-                                  {isMe && (
-                                    <button
-                                      onClick={() => handleAttendance(run.id, status)}
-                                      className={`ml-1 rounded px-1.5 py-0.5 text-xs transition-colors ${
-                                        status === "attending"
-                                          ? "bg-red-900/40 text-red-400 hover:bg-red-900/60"
-                                          : "bg-green-900/40 text-green-400 hover:bg-green-900/60"
-                                      }`}
-                                    >
-                                      {status === "attending" ? "불참으로" : "참석으로"}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                        {/* Quick action for current user if not responded */}
-                        {group.isMember && (!myAttendance || myAttendance.status === "pending") && (
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              onClick={() => handleAttendanceSet(run.id, "attending")}
-                              className="flex-1 rounded py-1 text-xs bg-green-900/30 text-green-400 hover:bg-green-900/50 transition-colors border border-green-800/40"
-                            >
-                              ✅ 참석
-                            </button>
-                            <button
-                              onClick={() => handleAttendanceSet(run.id, "absent")}
-                              className="flex-1 rounded py-1 text-xs bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors border border-red-800/40"
-                            >
-                              ❌ 불참
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -904,7 +775,7 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
                         <span className="text-xs text-gray-400">
                           {completedRaids}/{totalRaids}
                         </span>
-                        {group.myRole === "leader" && member.userId !== group.currentUserId && (
+                        {canEdit && member.userId !== group.currentUserId && (
                           <Button
                             variant="ghost"
                             size="sm"
