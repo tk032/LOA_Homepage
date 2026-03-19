@@ -191,26 +191,29 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
     setIsImporting(true)
     try {
       const toImport = searchResults.filter((c) => selectedChars.has(c.CharacterName))
-      for (const char of toImport) {
-        const res = await fetch("/api/characters", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: char.CharacterName,
-            characterClass: char.CharacterClassName,
-            itemLevel: char.ItemMaxLevel,
-          }),
-        })
-        if (res.ok) {
-          const newChar = await res.json() as Character
-          setCharacters((prev) => {
-            // Avoid duplicates
-            if (prev.some((c) => c.name === newChar.name)) return prev
-            return [...prev, { ...newChar, itemLevel: Number(newChar.itemLevel) }]
-          })
-        }
-      }
-      // Clear search after import
+      // All imports in parallel
+      const results = await Promise.all(
+        toImport.map((char) =>
+          fetch("/api/characters", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: char.CharacterName,
+              characterClass: char.CharacterClassName,
+              itemLevel: char.ItemMaxLevel,
+            }),
+          }).then((res) => res.ok ? res.json() as Promise<Character> : null)
+        )
+      )
+      const newChars = (results.filter(Boolean) as Character[]).map((c) => ({
+        ...c,
+        itemLevel: Number(c.itemLevel),
+      }))
+      setCharacters((prev) => {
+        const existingNames = new Set(prev.map((c) => c.name))
+        const toAdd = newChars.filter((c) => !existingNames.has(c.name))
+        return [...prev, ...toAdd]
+      })
       setSearchResults([])
       setSelectedChars(new Set())
       setSearchName("")

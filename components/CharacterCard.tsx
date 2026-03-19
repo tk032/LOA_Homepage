@@ -4,8 +4,6 @@ import { useState, useRef } from "react"
 import Image from "next/image"
 import {
   Card,
-  CardHeader,
-  CardTitle,
   CardContent,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -15,7 +13,6 @@ import { cn } from "@/lib/utils"
 import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
 import { ChevronUp, ChevronDown, Pencil } from "lucide-react"
 
-// Class archetype color mapping
 const CLASS_COLOR: Record<string, string> = {
   워로드: "#e74c3c", 버서커: "#c0392b", 홀리나이트: "#f39c12", 슬레이어: "#e67e22",
   배틀마스터: "#e67e22", 인파이터: "#d35400", 기공사: "#f39c12", 창술사: "#e74c3c",
@@ -27,12 +24,12 @@ const CLASS_COLOR: Record<string, string> = {
   도화가: "#e91e8c", 기상술사: "#00bcd4",
 }
 
-function ClassIcon({ className }: { className: string }) {
+function ClassPortrait({ className }: { className: string }) {
   const color = CLASS_COLOR[className] ?? "#6b7280"
   return (
     <div
-      className="h-12 w-12 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 shadow"
-      style={{ backgroundColor: color }}
+      className="w-16 rounded-lg flex items-center justify-center text-xl font-bold text-white shrink-0 shadow self-stretch"
+      style={{ backgroundColor: color, minHeight: "5rem" }}
       title={className}
     >
       {className.slice(0, 1)}
@@ -75,7 +72,6 @@ export function CharacterCard({
   character,
   weekStart,
   onToggleComplete,
-  onDelete,
   editMode = false,
   isSelected = false,
   onSelect,
@@ -88,7 +84,6 @@ export function CharacterCard({
   const [localSelections, setLocalSelections] = useState<RaidSelection[]>(character.raidSelections)
   const [showRaidEditor, setShowRaidEditor] = useState(false)
 
-  // Debounce refs per raid
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const desiredStateRef = useRef<Record<string, boolean>>({})
 
@@ -113,8 +108,6 @@ export function CharacterCard({
 
   function handleToggle(raidName: string) {
     if (!onToggleComplete || editMode) return
-
-    // Immediate optimistic flip
     let newState = false
     setLocalSelections((prev) => {
       const current = prev.find((r) => r.raidName === raidName)
@@ -122,28 +115,17 @@ export function CharacterCard({
       desiredStateRef.current[raidName] = newState
       return prev.map((r) => r.raidName === raidName ? { ...r, isCompleted: newState } : r)
     })
-
-    // Debounce API call — cancel previous pending call for this raid
-    if (debounceRef.current[raidName]) {
-      clearTimeout(debounceRef.current[raidName])
-    }
+    if (debounceRef.current[raidName]) clearTimeout(debounceRef.current[raidName])
     debounceRef.current[raidName] = setTimeout(async () => {
-      const targetState = desiredStateRef.current[raidName]
-      await onToggleComplete(character.id, raidName, weekStart, targetState)
+      await onToggleComplete(character.id, raidName, weekStart, desiredStateRef.current[raidName])
       delete debounceRef.current[raidName]
     }, 400)
   }
 
   function handleRaidEditorSave(raids: string[]) {
-    // Build new RaidSelection array (preserve completion state for existing, add new ones)
     const newSelections: RaidSelection[] = raids.map((raidName) => {
       const existing = localSelections.find((r) => r.raidName === raidName)
-      return existing ?? {
-        id: `tmp-${raidName}`,
-        raidName,
-        isCompleted: false,
-        weekStart,
-      }
+      return existing ?? { id: `tmp-${raidName}`, raidName, isCompleted: false, weekStart }
     })
     setLocalSelections(newSelections)
     setShowRaidEditor(false)
@@ -152,81 +134,106 @@ export function CharacterCard({
 
   return (
     <Card className={cn(
-      "bg-gray-900 border-gray-700 transition-colors",
+      "bg-gray-900 border-gray-700 transition-colors overflow-hidden",
       editMode && isSelected && "border-blue-500 bg-gray-800/80"
     )}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-3">
-          {/* Checkbox overlay in edit mode */}
+      {/* Top section: portrait + info */}
+      <div className="flex gap-0">
+        {/* Portrait image */}
+        <div className="relative shrink-0">
           {editMode && (
-            <div className="shrink-0">
+            <div className="absolute top-1.5 left-1.5 z-10">
               <input
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onSelect?.(character.id)}
-                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer"
+                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 cursor-pointer"
               />
             </div>
           )}
-
           {character.imageUrl ? (
-            <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 border-2 border-gray-700 bg-gray-800">
+            <div className="w-20 h-24 overflow-hidden bg-gray-800 border-r border-gray-700">
               <Image
                 src={character.imageUrl}
                 alt={character.name}
-                width={48}
-                height={48}
+                width={80}
+                height={96}
                 className="object-cover object-top w-full h-full"
               />
             </div>
           ) : (
-            <ClassIcon className={character.characterClass} />
+            <div className="w-20 h-24 border-r border-gray-700 flex items-center justify-center"
+              style={{ backgroundColor: CLASS_COLOR[character.characterClass] ?? "#6b7280" }}>
+              <span className="text-2xl font-bold text-white">{character.characterClass.slice(0, 1)}</span>
+            </div>
           )}
+        </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-white text-base truncate">{character.name}</CardTitle>
-              <div className="flex items-center gap-1 shrink-0">
-                <span className="text-sm font-medium text-blue-400">
-                  {character.itemLevel.toLocaleString()}
-                </span>
+        {/* Character info */}
+        <div className="flex-1 min-w-0 p-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-start justify-between gap-1">
+              <span className="font-bold text-white text-sm leading-tight truncate">{character.name}</span>
+              <div className="flex items-center gap-0.5 shrink-0">
+                {/* Pencil always visible */}
+                <button
+                  onClick={() => setShowRaidEditor((v) => !v)}
+                  className={cn(
+                    "p-1 rounded transition-colors",
+                    showRaidEditor
+                      ? "text-blue-400 bg-gray-700"
+                      : "text-gray-500 hover:text-gray-300 hover:bg-gray-700"
+                  )}
+                  title="레이드 편집"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                {/* ↑↓ only in edit mode */}
                 {editMode && (
                   <>
-                    <button
-                      onClick={() => setShowRaidEditor((v) => !v)}
-                      className="ml-1 p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-                      title="레이드 편집"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
                     <button
                       onClick={() => onMoveUp?.(character.id)}
                       disabled={!canMoveUp}
                       className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="위로 이동"
                     >
-                      <ChevronUp className="h-3.5 w-3.5" />
+                      <ChevronUp className="h-3 w-3" />
                     </button>
                     <button
                       onClick={() => onMoveDown?.(character.id)}
                       disabled={!canMoveDown}
                       className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="아래로 이동"
                     >
-                      <ChevronDown className="h-3.5 w-3.5" />
+                      <ChevronDown className="h-3 w-3" />
                     </button>
                   </>
                 )}
               </div>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{character.characterClass}</p>
+            <p className="text-xs font-medium text-blue-400 mt-0.5">{character.itemLevel.toLocaleString()}</p>
           </div>
-        </div>
-      </CardHeader>
 
-      <CardContent className="space-y-3">
+          {/* Progress bar */}
+          {total > 0 && (
+            <div className="mt-2 space-y-1">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>{completed}/{total}</span>
+                {potentialGold > 0 && (
+                  <span>
+                    <span className="text-yellow-400 font-medium">{earnedGold.toLocaleString()}g</span>
+                    <span className="text-gray-600"> / {potentialGold.toLocaleString()}g</span>
+                  </span>
+                )}
+              </div>
+              <Progress value={progressPct} className="h-1 bg-gray-700" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <CardContent className="px-3 pb-3 pt-2 space-y-2">
         {/* Inline raid editor */}
-        {editMode && showRaidEditor && (
+        {showRaidEditor && (
           <RaidEditor
             characterId={character.id}
             itemLevel={character.itemLevel}
@@ -237,69 +244,45 @@ export function CharacterCard({
           />
         )}
 
-        {total > 0 ? (
-          <>
-            <div className="flex items-center justify-between text-xs text-gray-400">
-              <span>진행도</span>
-              <span>{completed} / {total}</span>
-            </div>
-            <Progress value={progressPct} className="h-1.5 bg-gray-700" />
-            <div className="flex flex-wrap gap-2 pt-1">
-              {localSelections.map((selection) => {
-                const isGoldRaid = goldRaidNames.has(selection.raidName)
-                const gold = getRaidGold(selection.raidName)
-                return (
-                  <button
-                    key={selection.raidName}
-                    onClick={() => handleToggle(selection.raidName)}
-                    disabled={editMode}
-                    className="transition-opacity disabled:cursor-default"
-                  >
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-all",
-                        selection.isCompleted
-                          ? "bg-gray-700 text-gray-500 border-gray-600 line-through opacity-60"
-                          : "cursor-pointer hover:brightness-110"
-                      )}
-                    >
-                      {selection.isCompleted ? (
-                        <span className="line-through text-gray-500">
-                          {selection.raidName}
-                        </span>
-                      ) : (
-                        <RaidBadge raidName={selection.raidName} />
-                      )}
-                      {isGoldRaid && gold > 0 && (
-                        <span
-                          className={cn(
-                            "font-normal",
-                            selection.isCompleted ? "text-yellow-600" : "text-yellow-400"
-                          )}
-                        >
-                          {gold.toLocaleString()}g
-                        </span>
-                      )}
+        {/* Raid list - one per line */}
+        {!showRaidEditor && total > 0 && (
+          <div className="flex flex-col gap-1">
+            {localSelections.map((selection) => {
+              const isGoldRaid = goldRaidNames.has(selection.raidName)
+              const gold = getRaidGold(selection.raidName)
+              return (
+                <button
+                  key={selection.raidName}
+                  onClick={() => handleToggle(selection.raidName)}
+                  disabled={editMode}
+                  className="flex items-center justify-between w-full rounded-md border px-2 py-1 text-xs font-medium transition-all disabled:cursor-default"
+                  style={{}}
+                >
+                  <span className={cn(
+                    "flex items-center gap-1",
+                    selection.isCompleted ? "line-through text-gray-500" : ""
+                  )}>
+                    {selection.isCompleted ? (
+                      <span className="text-gray-500">{selection.raidName}</span>
+                    ) : (
+                      <RaidBadge raidName={selection.raidName} />
+                    )}
+                  </span>
+                  {isGoldRaid && gold > 0 && (
+                    <span className={cn(
+                      "font-normal ml-auto",
+                      selection.isCompleted ? "text-yellow-700" : "text-yellow-400"
+                    )}>
+                      {gold.toLocaleString()}g
                     </span>
-                  </button>
-                )
-              })}
-            </div>
-            {potentialGold > 0 && (
-              <div className="pt-1 border-t border-gray-800 flex items-center justify-between text-xs">
-                <span className="text-gray-400">주간 골드</span>
-                <span>
-                  <span className="text-yellow-400 font-medium">
-                    {earnedGold.toLocaleString()}g
-                  </span>
-                  <span className="text-gray-500">
-                    {" "}/ {potentialGold.toLocaleString()}g
-                  </span>
-                </span>
-              </div>
-            )}
-          </>
-        ) : (
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {!showRaidEditor && total === 0 && (
           <p className="text-xs text-gray-500">이번 주 레이드가 없습니다.</p>
         )}
       </CardContent>

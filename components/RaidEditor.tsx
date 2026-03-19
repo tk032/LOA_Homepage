@@ -23,7 +23,7 @@ export function RaidEditor({
   const [selected, setSelected] = useState<Set<string>>(new Set(currentRaids))
   const [isSaving, setIsSaving] = useState(false)
 
-  // Compute which selected raids count for gold (top MAX_GOLD_RAIDS by gold value)
+  // Top MAX_GOLD_RAIDS by gold value among selected
   const goldRaidNames = new Set(
     [...selected]
       .map((name) => ({ name, gold: getRaidGold(name) }))
@@ -32,12 +32,17 @@ export function RaidEditor({
       .map((r) => r.name)
   )
 
-  function toggleRaid(raidName: string) {
+  // Selecting a raid deselects all others in the same group (radio within group)
+  function toggleRaid(groupName: string, raidName: string) {
     setSelected((prev) => {
       const next = new Set(prev)
+      const groupRaidNames = RAID_GROUPS[groupName].raids.map((r) => r.name)
       if (next.has(raidName)) {
+        // Deselect
         next.delete(raidName)
       } else {
+        // Select: remove all other raids in this group first
+        groupRaidNames.forEach((r) => next.delete(r))
         next.add(raidName)
       }
       return next
@@ -62,56 +67,61 @@ export function RaidEditor({
   }
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-900 p-3 space-y-3">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+    <div className="rounded-lg border border-gray-700 bg-gray-850 p-3 space-y-2">
+      <p className="text-xs font-medium text-gray-400">
         레이드 선택
-        <span className="ml-2 text-gray-500 normal-case">
-          (골드 상위 {MAX_GOLD_RAIDS}개 적용)
-        </span>
+        <span className="ml-2 text-gray-600 font-normal">골드 상위 {MAX_GOLD_RAIDS}개 적용</span>
       </p>
 
       <div className="space-y-2">
         {Object.entries(RAID_GROUPS).map(([groupName, groupData]) => {
-          const eligibleRaids = groupData.raids.filter(
-            (r) => itemLevel >= r.minLevel
-          )
+          const eligibleRaids = groupData.raids.filter((r) => itemLevel >= r.minLevel)
           if (eligibleRaids.length === 0) return null
 
+          // Which raid in this group is currently selected (if any)
+          const selectedInGroup = eligibleRaids.find((r) => selected.has(r.name))
+
           return (
-            <div key={groupName} className="space-y-1">
-              <p className="text-xs text-gray-500 font-medium">{groupName}</p>
-              {eligibleRaids.map((raid) => {
-                const isChecked = selected.has(raid.name)
-                const isGoldRaid = goldRaidNames.has(raid.name)
-                return (
-                  <label
-                    key={raid.name}
-                    className="flex items-center gap-2 cursor-pointer rounded px-2 py-1 hover:bg-gray-800 transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleRaid(raid.name)}
-                      className="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
-                    />
-                    <span className="text-sm text-white flex-1">
-                      {raid.name}
-                    </span>
-                    <span
-                      className={
-                        isChecked && isGoldRaid
-                          ? "text-xs font-medium text-yellow-400"
-                          : "text-xs text-gray-500"
-                      }
-                    >
-                      {raid.gold.toLocaleString()}g
-                      {isChecked && isGoldRaid && (
-                        <span className="ml-1 text-yellow-500">★</span>
+            <div key={groupName}>
+              <p className="text-xs text-gray-500 font-medium mb-1">{groupName}</p>
+              <div className="flex flex-col gap-0.5">
+                {eligibleRaids.map((raid) => {
+                  const isChecked = selected.has(raid.name)
+                  const isGoldRaid = goldRaidNames.has(raid.name)
+                  // Locked if another raid in same group is selected
+                  const isLocked = !isChecked && selectedInGroup !== undefined
+
+                  return (
+                    <label
+                      key={raid.name}
+                      className={cn(
+                        "flex items-center gap-2 rounded px-2 py-1 transition-colors",
+                        isLocked
+                          ? "opacity-35 cursor-not-allowed"
+                          : "cursor-pointer hover:bg-gray-800"
                       )}
-                    </span>
-                  </label>
-                )
-              })}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={isLocked}
+                        onChange={() => !isLocked && toggleRaid(groupName, raid.name)}
+                        className="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                      <span className={cn("text-sm flex-1", isLocked ? "text-gray-600" : "text-white")}>
+                        {raid.name}
+                      </span>
+                      <span className={cn(
+                        "text-xs",
+                        isChecked && isGoldRaid ? "text-yellow-400 font-medium" : "text-gray-600"
+                      )}>
+                        {raid.gold.toLocaleString()}g
+                        {isChecked && isGoldRaid && <span className="ml-0.5">★</span>}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
           )
         })}
@@ -134,4 +144,8 @@ export function RaidEditor({
       </div>
     </div>
   )
+}
+
+function cn(...classes: (string | undefined | false)[]) {
+  return classes.filter(Boolean).join(" ")
 }
