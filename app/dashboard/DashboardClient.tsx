@@ -44,34 +44,21 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
   async function handleToggleComplete(
     characterId: string,
     raidName: string,
-    ws: string
+    ws: string,
+    isCompleted: boolean
   ) {
     const res = await fetch(`/api/characters/${characterId}/complete`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ raidName, weekStart: ws }),
+      body: JSON.stringify({ raidName, weekStart: ws, isCompleted }),
     })
-
     if (!res.ok) {
       console.error("Failed to toggle completion")
-      return
     }
+  }
 
-    const updated = await res.json()
-
-    setCharacters((prev) =>
-      prev.map((c) => {
-        if (c.id !== characterId) return c
-        return {
-          ...c,
-          raidSelections: c.raidSelections.map((r) =>
-            r.raidName === raidName
-              ? { ...r, isCompleted: updated.isCompleted }
-              : r
-          ),
-        }
-      })
-    )
+  function handleDelete(characterId: string) {
+    setCharacters((prev) => prev.filter((c) => c.id !== characterId))
   }
 
   async function handleSearch() {
@@ -239,6 +226,7 @@ export function DashboardClient({ initialCharacters, weekStart }: DashboardClien
                 character={character}
                 weekStart={weekStart}
                 onToggleComplete={handleToggleComplete}
+                onDelete={handleDelete}
               />
             ))}
           </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Image from "next/image"
 import {
   Card,
@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress"
 import { RaidBadge } from "@/components/RaidBadge"
 import { cn } from "@/lib/utils"
 import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
+import { Settings, Trash2, X } from "lucide-react"
 
 // Class archetype color mapping
 const CLASS_COLOR: Record<string, string> = {
@@ -29,7 +30,7 @@ function ClassIcon({ className }: { className: string }) {
   const color = CLASS_COLOR[className] ?? "#6b7280"
   return (
     <div
-      className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow"
+      className="h-12 w-12 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 shadow"
       style={{ backgroundColor: color }}
       title={className}
     >
@@ -57,14 +58,18 @@ interface Character {
 interface CharacterCardProps {
   character: Character
   weekStart: string
-  onToggleComplete?: (characterId: string, raidName: string, weekStart: string) => Promise<void>
+  onToggleComplete?: (characterId: string, raidName: string, weekStart: string, isCompleted: boolean) => Promise<void>
+  onDelete?: (characterId: string) => void
 }
 
-export function CharacterCard({ character, weekStart, onToggleComplete }: CharacterCardProps) {
-  const [loadingRaid, setLoadingRaid] = useState<string | null>(null)
-  const [localSelections, setLocalSelections] = useState<RaidSelection[]>(
-    character.raidSelections
-  )
+export function CharacterCard({ character, weekStart, onToggleComplete, onDelete }: CharacterCardProps) {
+  const [localSelections, setLocalSelections] = useState<RaidSelection[]>(character.raidSelections)
+  const [showSettings, setShowSettings] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Debounce refs per raid
+  const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const desiredStateRef = useRef<Record<string, boolean>>({})
 
   const completed = localSelections.filter((r) => r.isCompleted).length
   const total = localSelections.length
@@ -85,22 +90,38 @@ export function CharacterCard({ character, weekStart, onToggleComplete }: Charac
     .filter((r) => goldRaidNames.has(r.raidName))
     .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
 
-  async function handleToggle(raidName: string) {
-    if (!onToggleComplete || loadingRaid) return
-    setLoadingRaid(raidName)
-    // Optimistic update: flip immediately
-    setLocalSelections((prev) =>
-      prev.map((r) => r.raidName === raidName ? { ...r, isCompleted: !r.isCompleted } : r)
-    )
+  function handleToggle(raidName: string) {
+    if (!onToggleComplete) return
+
+    // Immediate optimistic flip
+    let newState = false
+    setLocalSelections((prev) => {
+      const current = prev.find((r) => r.raidName === raidName)
+      newState = current ? !current.isCompleted : false
+      desiredStateRef.current[raidName] = newState
+      return prev.map((r) => r.raidName === raidName ? { ...r, isCompleted: newState } : r)
+    })
+
+    // Debounce API call — cancel previous pending call for this raid
+    if (debounceRef.current[raidName]) {
+      clearTimeout(debounceRef.current[raidName])
+    }
+    debounceRef.current[raidName] = setTimeout(async () => {
+      const targetState = desiredStateRef.current[raidName]
+      await onToggleComplete(character.id, raidName, weekStart, targetState)
+      delete debounceRef.current[raidName]
+    }, 400)
+  }
+
+  async function handleDelete() {
+    setIsDeleting(true)
     try {
-      await onToggleComplete(character.id, raidName, weekStart)
-    } catch {
-      // Revert on error
-      setLocalSelections((prev) =>
-        prev.map((r) => r.raidName === raidName ? { ...r, isCompleted: !r.isCompleted } : r)
-      )
+      const res = await fetch(`/api/characters/${character.id}`, { method: "DELETE" })
+      if (res.ok) {
+        onDelete?.(character.id)
+      }
     } finally {
-      setLoadingRaid(null)
+      setIsDeleting(false)
     }
   }
 
@@ -124,13 +145,34 @@ export function CharacterCard({ character, weekStart, onToggleComplete }: Charac
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-white text-base truncate">{character.name}</CardTitle>
-              <span className="text-sm font-medium text-blue-400 shrink-0">
-                {character.itemLevel.toLocaleString()}
-              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-sm font-medium text-blue-400">
+                  {character.itemLevel.toLocaleString()}
+                </span>
+                <button
+                  onClick={() => setShowSettings((v) => !v)}
+                  className="ml-1 p-1 rounded text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+                >
+                  {showSettings ? <X className="h-3.5 w-3.5" /> : <Settings className="h-3.5 w-3.5" />}
+                </button>
+              </div>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{character.characterClass}</p>
           </div>
         </div>
+
+        {showSettings && (
+          <div className="mt-2 flex justify-end">
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-1.5 rounded-md bg-red-900/60 hover:bg-red-800 border border-red-700/50 px-3 py-1.5 text-xs font-medium text-red-300 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {isDeleting ? "삭제 중..." : "캐릭터 삭제"}
+            </button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {total > 0 ? (
@@ -148,11 +190,7 @@ export function CharacterCard({ character, weekStart, onToggleComplete }: Charac
                   <button
                     key={selection.raidName}
                     onClick={() => handleToggle(selection.raidName)}
-                    disabled={loadingRaid === selection.raidName}
-                    className={cn(
-                      "transition-opacity",
-                      loadingRaid === selection.raidName && "opacity-50"
-                    )}
+                    className="transition-opacity"
                   >
                     <span
                       className={cn(

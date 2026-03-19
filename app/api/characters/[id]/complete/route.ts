@@ -29,19 +29,20 @@ export async function POST(
 
   try {
     const body = await req.json()
-    const { raidName, weekStart } = body as {
+    const { raidName, weekStart, isCompleted } = body as {
       raidName: string
       weekStart: string
+      isCompleted: boolean
     }
 
-    if (!raidName || !weekStart) {
+    if (!raidName || !weekStart || isCompleted == null) {
       return NextResponse.json(
-        { error: "레이드 이름과 주차 정보가 필요합니다." },
+        { error: "레이드 이름, 주차 정보, 완료 상태가 필요합니다." },
         { status: 400 }
       )
     }
 
-    const existing = await prisma.raidSelection.findUnique({
+    const updated = await prisma.raidSelection.upsert({
       where: {
         characterId_raidName_weekStart: {
           characterId: id,
@@ -49,20 +50,16 @@ export async function POST(
           weekStart,
         },
       },
-    })
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: "해당 레이드 선택을 찾을 수 없습니다." },
-        { status: 404 }
-      )
-    }
-
-    const updated = await prisma.raidSelection.update({
-      where: { id: existing.id },
-      data: {
-        isCompleted: !existing.isCompleted,
-        completedAt: !existing.isCompleted ? new Date() : null,
+      update: {
+        isCompleted,
+        completedAt: isCompleted ? new Date() : null,
+      },
+      create: {
+        characterId: id,
+        raidName,
+        weekStart,
+        isCompleted,
+        completedAt: isCompleted ? new Date() : null,
       },
     })
 
