@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  characters   Character[]
+  groupMembers GroupMember[]
+  runMembers   RunMember[]
+}
+
+model Character {
+  id             String   @id @default(cuid())
+  name           String
+  characterClass String
+  itemLevel      Float
+  imageUrl       String   @default("")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  raidSelections RaidSelection[]
+
+  @@unique([userId, name])
+}
+
+model RaidSelection {
+  id          String    @id @default(cuid())
+  raidName    String
+  weekStart   String    // "YYYY-MM-DD"
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, raidName, weekStart])
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  members   GroupMember[]
+  runs      GroupRun[]
+}
+
+model GroupMember {
+  id       String   @id @default(cuid())
+  role     String   @default("member") // "leader" | "member"
+  joinedAt DateTime @default(now())
+
+  groupId  String
+  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model GroupRun {
+  id        String   @id @default(cuid())
+  raidName  String
+  weekStart String
+  note      String   @default("")
+  createdAt DateTime @default(now())
+
+  groupId   String
+  group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  members   RunMember[]
+}
+
+model RunMember {
+  id            String   @id @default(cuid())
+  characterName String
+  itemLevel     Float    @default(0)
+
+  runId         String
+  run           GroupRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, userId])
+}
