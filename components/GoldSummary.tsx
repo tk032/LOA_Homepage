@@ -82,16 +82,16 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
                 ) : (
                   char.goldRaids.map((raid) => {
                     const group = getRaidGroup(raid.raidName)
-                    const colors = group ? RAID_GROUP_COLORS[group] : null
+                    const textColor = group ? RAID_GROUP_COLORS[group]?.text : "text-gray-200"
                     if (raid.isCompleted) {
                       return (
-                        <span key={raid.raidName} className="inline-flex rounded-md border border-gray-800 bg-gray-800/50 px-2 py-1 text-xs text-gray-600 line-through">
+                        <span key={raid.raidName} className="inline-flex rounded-md border border-gray-700/40 bg-gray-800/40 px-2 py-1 text-xs text-gray-600 line-through">
                           {raid.raidName}
                         </span>
                       )
                     }
                     return (
-                      <span key={raid.raidName} className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${colors?.bg ?? "bg-gray-700/40"} ${colors?.text ?? "text-gray-200"} ${colors?.border ?? "border-gray-600/50"}`}>
+                      <span key={raid.raidName} className={`inline-flex rounded-md border border-slate-700/60 bg-slate-800/60 px-2 py-1 text-xs font-semibold ${textColor ?? "text-gray-200"}`}>
                         {raid.raidName}
                       </span>
                     )
