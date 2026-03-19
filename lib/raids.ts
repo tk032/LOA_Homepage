@@ -8,44 +8,44 @@ export const RAID_GROUPS: Record<
     raids: [
       { name: "지평의 성당 3단계", minLevel: 1750, partySize: 4, gold: 50000 },
       { name: "지평의 성당 2단계", minLevel: 1720, partySize: 4, gold: 40000 },
-      { name: "지평의 성당 1단계", minLevel: 1700, partySize: 4, gold: 2500 },
+      { name: "지평의 성당 1단계", minLevel: 1700, partySize: 4, gold: 30000 },
     ],
   },
   세르카: {
     raids: [
       { name: "나메 세르카", minLevel: 1740, partySize: 4, gold: 54000 },
       { name: "하드 세르카", minLevel: 1730, partySize: 4, gold: 44000 },
-      { name: "노말 세르카", minLevel: 1710, partySize: 4, gold: 2500 },
+      { name: "노말 세르카", minLevel: 1710, partySize: 4, gold: 35000 },
     ],
   },
   종막: {
     raids: [
       { name: "종막 하드", minLevel: 1730, partySize: 8, gold: 52000 },
-      { name: "노말 종막", minLevel: 1710, partySize: 8, gold: 44000 },
+      { name: "노말 종막", minLevel: 1710, partySize: 8, gold: 40000 },
     ],
   },
   "4막": {
     raids: [
       { name: "4막 하드", minLevel: 1720, partySize: 8, gold: 42000 },
-      { name: "4막 노말", minLevel: 1700, partySize: 8, gold: 2000 },
+      { name: "4막 노말", minLevel: 1700, partySize: 8, gold: 33000 },
     ],
   },
   둠: {
     raids: [
-      { name: "하르둠", minLevel: 1700, partySize: 8, gold: 2500 },
-      { name: "노르둠", minLevel: 1680, partySize: 8, gold: 1500 },
+      { name: "하르둠", minLevel: 1700, partySize: 8, gold: 27000 },
+      { name: "노르둠", minLevel: 1680, partySize: 8, gold: 21000 },
     ],
   },
   브: {
     raids: [
-      { name: "하브", minLevel: 1690, partySize: 8, gold: 2000 },
-      { name: "노브", minLevel: 1670, partySize: 8, gold: 1500 },
+      { name: "하브", minLevel: 1690, partySize: 8, gold: 23000 },
+      { name: "노브", minLevel: 1670, partySize: 8, gold: 16500 },
     ],
   },
   기르: {
     raids: [
-      { name: "하기르", minLevel: 1680, partySize: 8, gold: 1500 },
-      { name: "노기르", minLevel: 1660, partySize: 8, gold: 1000 },
+      { name: "하기르", minLevel: 1680, partySize: 8, gold: 18000 },
+      { name: "노기르", minLevel: 1660, partySize: 8, gold: 11500 },
     ],
   },
 }
