@@ -52,32 +52,19 @@ export default async function DashboardPage() {
       </div>
 
       {/* Characters Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">내 캐릭터</h2>
-          <span className="text-sm text-gray-400">{characters.length}개 캐릭터</span>
-        </div>
-        {characters.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/50 p-8 text-center">
-            <p className="text-gray-400 text-sm">등록된 캐릭터가 없습니다.</p>
-            <p className="text-gray-500 text-xs mt-1">캐릭터를 추가하여 레이드를 관리하세요.</p>
-          </div>
-        ) : (
-          <DashboardClient
-            initialCharacters={characters.map((c) => ({
-              ...c,
-              itemLevel: Number(c.itemLevel),
-              raidSelections: c.raidSelections.map((r) => ({
-                id: r.id,
-                raidName: r.raidName,
-                isCompleted: r.isCompleted,
-                weekStart: r.weekStart,
-              })),
-            }))}
-            weekStart={weekStart}
-          />
-        )}
-      </section>
+      <DashboardClient
+        initialCharacters={characters.map((c) => ({
+          ...c,
+          itemLevel: Number(c.itemLevel),
+          raidSelections: c.raidSelections.map((r) => ({
+            id: r.id,
+            raidName: r.raidName,
+            isCompleted: r.isCompleted,
+            weekStart: r.weekStart,
+          })),
+        }))}
+        weekStart={weekStart}
+      />
 
       {/* Groups Section */}
       <section className="space-y-4">

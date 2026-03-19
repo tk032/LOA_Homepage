@@ -11,6 +11,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { RaidBadge } from "@/components/RaidBadge"
 import { cn } from "@/lib/utils"
+import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
 
 interface RaidSelection {
   id: string
@@ -42,6 +43,22 @@ export function CharacterCard({ character, weekStart, onToggleComplete }: Charac
   const completed = localSelections.filter((r) => r.isCompleted).length
   const total = localSelections.length
   const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0
+
+  // Determine gold raids: top MAX_GOLD_RAIDS by gold amount
+  const goldRaidNames = new Set(
+    [...localSelections]
+      .sort((a, b) => getRaidGold(b.raidName) - getRaidGold(a.raidName))
+      .slice(0, MAX_GOLD_RAIDS)
+      .map((r) => r.raidName)
+  )
+
+  const earnedGold = localSelections
+    .filter((r) => r.isCompleted && goldRaidNames.has(r.raidName))
+    .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
+
+  const potentialGold = localSelections
+    .filter((r) => goldRaidNames.has(r.raidName))
+    .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
 
   async function handleToggle(raidName: string) {
     if (!onToggleComplete || loadingRaid) return
@@ -80,35 +97,65 @@ export function CharacterCard({ character, weekStart, onToggleComplete }: Charac
             </div>
             <Progress value={progressPct} className="h-1.5 bg-gray-700" />
             <div className="flex flex-wrap gap-2 pt-1">
-              {localSelections.map((selection) => (
-                <button
-                  key={selection.raidName}
-                  onClick={() => handleToggle(selection.raidName)}
-                  disabled={loadingRaid === selection.raidName}
-                  className={cn(
-                    "transition-opacity",
-                    loadingRaid === selection.raidName && "opacity-50"
-                  )}
-                >
-                  <span
+              {localSelections.map((selection) => {
+                const isGoldRaid = goldRaidNames.has(selection.raidName)
+                const gold = getRaidGold(selection.raidName)
+                return (
+                  <button
+                    key={selection.raidName}
+                    onClick={() => handleToggle(selection.raidName)}
+                    disabled={loadingRaid === selection.raidName}
                     className={cn(
-                      "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-all",
-                      selection.isCompleted
-                        ? "bg-gray-700 text-gray-500 border-gray-600 line-through opacity-60"
-                        : "cursor-pointer hover:brightness-110"
+                      "transition-opacity",
+                      loadingRaid === selection.raidName && "opacity-50"
                     )}
                   >
-                    {selection.isCompleted ? (
-                      <span className="line-through text-gray-500">
-                        {selection.raidName}
-                      </span>
-                    ) : (
-                      <RaidBadge raidName={selection.raidName} />
-                    )}
-                  </span>
-                </button>
-              ))}
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-all",
+                        selection.isCompleted
+                          ? "bg-gray-700 text-gray-500 border-gray-600 line-through opacity-60"
+                          : "cursor-pointer hover:brightness-110"
+                      )}
+                    >
+                      {selection.isCompleted ? (
+                        <span className="line-through text-gray-500">
+                          {selection.raidName}
+                        </span>
+                      ) : (
+                        <RaidBadge raidName={selection.raidName} />
+                      )}
+                      {isGoldRaid && gold > 0 && (
+                        <span
+                          className={cn(
+                            "font-normal",
+                            selection.isCompleted
+                              ? "text-yellow-600"
+                              : "text-yellow-400"
+                          )}
+                        >
+                          {gold.toLocaleString()}g
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
+            {/* Weekly gold summary */}
+            {potentialGold > 0 && (
+              <div className="pt-1 border-t border-gray-800 flex items-center justify-between text-xs">
+                <span className="text-gray-400">주간 골드</span>
+                <span>
+                  <span className="text-yellow-400 font-medium">
+                    {earnedGold.toLocaleString()}g
+                  </span>
+                  <span className="text-gray-500">
+                    {" "}/ {potentialGold.toLocaleString()}g
+                  </span>
+                </span>
+              </div>
+            )}
           </>
         ) : (
           <p className="text-xs text-gray-500">이번 주 레이드가 없습니다.</p>

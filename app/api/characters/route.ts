@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getWeekStart } from "@/lib/raids"
+import { getWeekStart, RAID_GROUPS, getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
       name: string
       characterClass: string
       itemLevel: number
+      raids?: string[]
     }
 
     if (!name || !characterClass || itemLevel == null) {
@@ -48,12 +49,39 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const weekStart = getWeekStart()
+
+    // Auto-select top gold raids the character qualifies for
+    // Pick the hardest eligible raid per group, sort by gold desc, take top MAX_GOLD_RAIDS
+    const eligibleRaids: { name: string; gold: number }[] = []
+    for (const groupData of Object.values(RAID_GROUPS)) {
+      // Raids are ordered hardest first in RAID_GROUPS
+      const best = groupData.raids.find((r) => itemLevel >= r.minLevel)
+      if (best) {
+        eligibleRaids.push({ name: best.name, gold: getRaidGold(best.name) })
+      }
+    }
+    eligibleRaids.sort((a, b) => b.gold - a.gold)
+    const goldRaids = eligibleRaids.slice(0, MAX_GOLD_RAIDS)
+
     const character = await prisma.character.create({
       data: {
         name,
         characterClass,
         itemLevel,
         userId: session.user.id,
+        raidSelections: goldRaids.length > 0
+          ? {
+              create: goldRaids.map((r) => ({
+                raidName: r.name,
+                weekStart,
+                isCompleted: false,
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        raidSelections: { where: { weekStart } },
       },
     })
 
