@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const url = `https://developer-lostark.game.gg/characters/${encodeURIComponent(name)}/siblings`
+    const url = `https://developer-lostark.game.onstove.com/characters/${encodeURIComponent(name)}/siblings`
     const response = await fetch(url, {
       headers: {
         Authorization: `bearer ${apiKey}`,
@@ -41,12 +41,12 @@ export async function GET(req: NextRequest) {
     const characters = (data as Array<{
       CharacterName: string
       CharacterClassName: string
-      ItemMaxLevel: string
+      ItemAvgLevel: string
       ServerName: string
     }>).map((char) => ({
       CharacterName: char.CharacterName,
       CharacterClassName: char.CharacterClassName,
-      ItemMaxLevel: parseFloat(char.ItemMaxLevel.replace(/,/g, "")),
+      ItemMaxLevel: parseFloat(char.ItemAvgLevel.replace(/,/g, "")),
       ServerName: char.ServerName,
     }))
 
