@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useSession, signOut, signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Sword } from "lucide-react"
+import { Flower2 } from "lucide-react"
 
 export function Navbar() {
   const { data: session, status } = useSession()
@@ -15,10 +15,10 @@ export function Navbar() {
         <div className="flex items-center gap-6">
           <Link
             href="/"
-            className="flex items-center gap-2 font-bold text-white hover:text-blue-400 transition-colors"
+            className="flex items-center gap-2 font-bold text-white hover:text-pink-400 transition-colors"
           >
-            <Sword className="h-5 w-5 text-blue-400" />
-            <span>LOA 레이드</span>
+            <Flower2 className="h-5 w-5 text-pink-400" />
+            <span>마리 홈페이지</span>
           </Link>
           {session && (
             <div className="flex items-center gap-1">

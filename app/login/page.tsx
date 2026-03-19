@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Sword } from "lucide-react"
+import { Flower2 } from "lucide-react"
 
 export default function LoginPage() {
   const [agreed, setAgreed] = useState(false)
@@ -15,9 +15,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm bg-gray-900 border-gray-800">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <Sword className="h-8 w-8 text-blue-400" />
+            <Flower2 className="h-8 w-8 text-pink-400" />
           </div>
-          <CardTitle className="text-white text-xl">LOA 레이드</CardTitle>
+          <CardTitle className="text-white text-xl">마리 홈페이지</CardTitle>
           <CardDescription className="text-gray-400">
             Discord 계정으로 로그인하세요
           </CardDescription>

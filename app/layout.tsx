@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "LOA 레이드 관리",
+  title: "마리 홈페이지",
   description: "로스트아크 레이드 관리 시스템",
 }
 
