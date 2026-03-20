@@ -744,7 +744,7 @@ export function GroupDetailClient({ group: initialGroup }: GroupDetailClientProp
             </Card>
           )}
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {group.members.map((member) => {
               const totalRaids = member.characters.reduce(
                 (sum, c) => sum + c.raidSelections.length,
