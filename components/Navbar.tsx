@@ -30,22 +30,6 @@ export function Navbar() {
               🌸 <span className="hidden sm:inline">마리 홈페이지</span><span className="sm:hidden">마리</span>
             </span>
           </Link>
-          {session && (
-            <div className="flex items-center gap-0.5 sm:gap-1">
-              <Link
-                href="/dashboard"
-                className="rounded-md px-2 sm:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                대시보드
-              </Link>
-              <Link
-                href="/groups"
-                className="rounded-md px-2 sm:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                그룹
-              </Link>
-            </div>
-          )}
         </div>
 
         {/* Right: theme + user */}

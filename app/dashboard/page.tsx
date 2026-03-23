@@ -95,6 +95,7 @@ export default async function DashboardPage() {
         initialCharacters={characters.map((c) => ({
           ...c,
           itemLevel: Number(c.itemLevel),
+          combatPower: c.combatPower ?? 0,
           isGoldCharacter: c.isGoldCharacter,
           raidSelections: c.raidSelections.map((r) => ({
             id: r.id,

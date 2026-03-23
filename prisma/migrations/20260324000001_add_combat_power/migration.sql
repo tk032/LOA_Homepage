@@ -1,0 +1,1 @@
+ALTER TABLE "Character" ADD COLUMN "combatPower" INTEGER NOT NULL DEFAULT 0;

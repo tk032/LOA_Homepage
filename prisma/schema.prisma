@@ -26,6 +26,7 @@ model Character {
   name           String
   characterClass String
   itemLevel      Float
+  combatPower    Int      @default(0)
   imageUrl       String   @default("")
   isActive       Boolean  @default(true)
   isGoldCharacter Boolean @default(true)

@@ -68,8 +68,9 @@ export async function POST(req: NextRequest) {
     eligibleRaids.sort((a, b) => b.gold - a.gold)
     const goldRaids = eligibleRaids.slice(0, MAX_GOLD_RAIDS)
 
-    // Fetch character profile image from Lost Ark API
+    // Fetch character profile image and combat power from Lost Ark API
     let imageUrl = ""
+    let combatPower = 0
     try {
       const apiKey = process.env.LOSTARK_API_KEY
       if (apiKey) {
@@ -83,8 +84,10 @@ export async function POST(req: NextRequest) {
           }
         )
         if (profileRes.ok) {
-          const profile = await profileRes.json() as { CharacterImage?: string }
+          const profile = await profileRes.json() as { CharacterImage?: string; Stats?: { Type: string; Value: string }[] }
           imageUrl = profile?.CharacterImage ?? ""
+          const cpStat = profile?.Stats?.find((s) => s.Type === "전투력")
+          if (cpStat) combatPower = parseInt(cpStat.Value.replace(/,/g, ""), 10) || 0
         }
       }
     } catch {
@@ -96,6 +99,7 @@ export async function POST(req: NextRequest) {
         name,
         characterClass,
         itemLevel,
+        combatPower,
         imageUrl,
         userId: session.user.id,
         raidSelections: goldRaids.length > 0

@@ -35,6 +35,7 @@ interface Character {
   name: string
   characterClass: string
   itemLevel: number
+  combatPower?: number
   imageUrl?: string
   isGoldCharacter: boolean
   raidSelections: RaidSelection[]
@@ -46,6 +47,7 @@ interface CharacterCardProps {
   onToggleComplete?: (characterId: string, raidName: string, weekStart: string, isCompleted: boolean) => Promise<void>
   onRaidUpdate?: (characterId: string, raids: RaidSelection[]) => void
   onGoldCharacterChange?: (characterId: string, isGold: boolean) => void
+  onGoldTargetChange?: (characterId: string, raidName: string, isGoldTarget: boolean) => void
   editMode?: boolean
   isSelected?: boolean
   onSelect?: (characterId: string) => void
@@ -63,6 +65,7 @@ export function CharacterCard({
   onToggleComplete,
   onRaidUpdate,
   onGoldCharacterChange,
+  onGoldTargetChange,
   editMode = false,
   isSelected = false,
   onSelect,
@@ -77,6 +80,7 @@ export function CharacterCard({
   const [localIsGoldCharacter, setLocalIsGoldCharacter] = useState(character.isGoldCharacter)
   const [showRaidEditor, setShowRaidEditor] = useState(false)
   const [localItemLevel, setLocalItemLevel] = useState<number>(character.itemLevel)
+  const [localCombatPower, setLocalCombatPower] = useState<number>(character.combatPower ?? 0)
   const [localImageUrl, setLocalImageUrl] = useState<string | undefined>(character.imageUrl)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [goldToggleError, setGoldToggleError] = useState("")
@@ -146,6 +150,7 @@ export function CharacterCard({
       setLocalSelections((prev) =>
         prev.map((r) => r.raidName === raidName ? { ...r, isGoldTarget: data.isGoldTarget } : r)
       )
+      onGoldTargetChange?.(character.id, raidName, data.isGoldTarget)
     }
   }
 
@@ -174,8 +179,9 @@ export function CharacterCard({
     try {
       const res = await fetch(`/api/characters/${character.id}/refresh`, { method: "POST" })
       if (res.ok) {
-        const updated = await res.json() as { itemLevel: number; imageUrl?: string }
+        const updated = await res.json() as { itemLevel: number; combatPower?: number; imageUrl?: string }
         setLocalItemLevel(Number(updated.itemLevel))
+        if (updated.combatPower) setLocalCombatPower(updated.combatPower)
         if (updated.imageUrl) setLocalImageUrl(updated.imageUrl)
       }
     } catch {
@@ -300,7 +306,12 @@ export function CharacterCard({
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{character.characterClass}</p>
-            <p className="text-xs font-medium text-blue-400 mt-0.5">{localItemLevel.toLocaleString()}</p>
+            <p className="text-xs font-medium text-blue-400 mt-0.5">
+              {localItemLevel.toLocaleString()}
+              {localCombatPower > 0 && (
+                <span className="text-gray-500 font-normal ml-1.5">전투력 {localCombatPower.toLocaleString()}</span>
+              )}
+            </p>
           </div>
 
           {total > 0 && (
@@ -343,7 +354,7 @@ export function CharacterCard({
           />
         ) : total > 0 ? (
           <div className="flex flex-col gap-1">
-            {localSelections.map((selection) => {
+            {[...localSelections].sort((a, b) => getRaidGold(b.raidName) - getRaidGold(a.raidName)).map((selection) => {
               const isGoldRaid = goldTargetNames.has(selection.raidName)
               const gold = getRaidGold(selection.raidName)
               const bound = isRaidBound(selection.raidName)

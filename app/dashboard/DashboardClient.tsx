@@ -20,6 +20,7 @@ interface Character {
   name: string
   characterClass: string
   itemLevel: number
+  combatPower?: number
   imageUrl?: string
   isGoldCharacter: boolean
   raidSelections: RaidSelection[]
@@ -494,6 +495,20 @@ export function DashboardClient({ initialCharacters, weekStart, availableWeeks }
                 onGoldCharacterChange={(id, isGold) => {
                   setCharacters((prev) =>
                     prev.map((c) => c.id === id ? { ...c, isGoldCharacter: isGold } : c)
+                  )
+                }}
+                onGoldTargetChange={(id, raidName, isGoldTarget) => {
+                  setCharacters((prev) =>
+                    prev.map((c) =>
+                      c.id === id
+                        ? {
+                            ...c,
+                            raidSelections: c.raidSelections.map((r) =>
+                              r.raidName === raidName ? { ...r, isGoldTarget } : r
+                            ),
+                          }
+                        : c
+                    )
                   )
                 }}
                 editMode={isCurrentWeek && editMode}
