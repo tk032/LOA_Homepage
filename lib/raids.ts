@@ -1,5 +1,3 @@
-export const MAX_GOLD_RAIDS = 3
-
 export const RAID_GROUPS: Record<
   string,
   { raids: { name: string; minLevel: number; partySize: number; gold: number; isBound?: boolean }[] }

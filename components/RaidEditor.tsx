@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { RAID_GROUPS, getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
+import { RAID_GROUPS, getRaidGold } from "@/lib/raids"
 
 interface RaidEditorProps {
   characterId: string
@@ -23,12 +23,12 @@ export function RaidEditor({
   const [selected, setSelected] = useState<Set<string>>(new Set(currentRaids))
   const [isSaving, setIsSaving] = useState(false)
 
-  // Top MAX_GOLD_RAIDS by gold value among selected
+  // Top 3 by gold value among selected
   const goldRaidNames = new Set(
     [...selected]
       .map((name) => ({ name, gold: getRaidGold(name) }))
       .sort((a, b) => b.gold - a.gold)
-      .slice(0, MAX_GOLD_RAIDS)
+      .slice(0, 3)
       .map((r) => r.name)
   )
 
@@ -70,7 +70,7 @@ export function RaidEditor({
     <div className="rounded-lg border border-gray-700 bg-gray-850 p-3 space-y-2">
       <p className="text-xs font-medium text-gray-400">
         레이드 선택
-        <span className="ml-2 text-gray-600 font-normal">골드 상위 {MAX_GOLD_RAIDS}개 적용</span>
+        <span className="ml-2 text-gray-600 font-normal">골드 상위 {3}개 적용</span>
       </p>
 
       <div className="space-y-2">

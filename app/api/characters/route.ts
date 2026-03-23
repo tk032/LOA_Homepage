@@ -4,7 +4,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getWeekStart, RAID_GROUPS, getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
+import { getWeekStart, RAID_GROUPS, getRaidGold } from "@/lib/raids"
+
+const MAX_GOLD_RAIDS = 3
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -102,6 +104,7 @@ export async function POST(req: NextRequest) {
                 raidName: r.name,
                 weekStart,
                 isCompleted: false,
+                isGoldTarget: true,
               })),
             }
           : undefined,

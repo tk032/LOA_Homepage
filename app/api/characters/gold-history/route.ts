@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getRaidGold, MAX_GOLD_RAIDS } from "@/lib/raids"
+import { getRaidGold } from "@/lib/raids"
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -42,18 +42,9 @@ export async function GET() {
     let potentialTotal = 0
 
     for (const char of characters) {
-      const selections = char.raidSelections
-      if (selections.length === 0) continue
-
-      // Top MAX_GOLD_RAIDS by gold value
-      const sorted = [...selections].sort(
-        (a, b) => getRaidGold(b.raidName) - getRaidGold(a.raidName)
-      )
-      const goldRaids = sorted.slice(0, MAX_GOLD_RAIDS)
-      const goldRaidNames = new Set(goldRaids.map((r) => r.raidName))
-
-      for (const sel of selections) {
-        if (!goldRaidNames.has(sel.raidName)) continue
+      if (!char.isGoldCharacter) continue
+      const goldSelections = char.raidSelections.filter((r) => r.isGoldTarget)
+      for (const sel of goldSelections) {
         const gold = getRaidGold(sel.raidName)
         potentialTotal += gold
         if (sel.isCompleted) earnedTotal += gold

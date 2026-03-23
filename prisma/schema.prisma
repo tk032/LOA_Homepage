@@ -28,6 +28,7 @@ model Character {
   itemLevel      Float
   imageUrl       String   @default("")
   isActive       Boolean  @default(true)
+  isGoldCharacter Boolean @default(true)
   sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
 
@@ -40,12 +41,13 @@ model Character {
 }
 
 model RaidSelection {
-  id          String    @id @default(cuid())
-  raidName    String
-  weekStart   String
-  isCompleted Boolean   @default(false)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id           String    @id @default(cuid())
+  raidName     String
+  weekStart    String
+  isCompleted  Boolean   @default(false)
+  isGoldTarget Boolean   @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
 
   characterId String
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)

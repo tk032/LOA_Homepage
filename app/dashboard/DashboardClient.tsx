@@ -11,6 +11,7 @@ interface RaidSelection {
   id: string
   raidName: string
   isCompleted: boolean
+  isGoldTarget: boolean
   weekStart: string
 }
 
@@ -20,6 +21,7 @@ interface Character {
   characterClass: string
   itemLevel: number
   imageUrl?: string
+  isGoldCharacter: boolean
   raidSelections: RaidSelection[]
 }
 
@@ -451,6 +453,11 @@ export function DashboardClient({ initialCharacters, weekStart, availableWeeks }
                 weekStart={selectedWeek}
                 onToggleComplete={isCurrentWeek ? handleToggleComplete : undefined}
                 onRaidUpdate={isCurrentWeek ? handleRaidUpdate : undefined}
+                onGoldCharacterChange={(id, isGold) => {
+                  setCharacters((prev) =>
+                    prev.map((c) => c.id === id ? { ...c, isGoldCharacter: isGold } : c)
+                  )
+                }}
                 editMode={isCurrentWeek && editMode}
                 isSelected={selectedIds.has(character.id)}
                 onSelect={handleSelect}

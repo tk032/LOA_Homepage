@@ -69,10 +69,12 @@ export default async function DashboardPage() {
         initialCharacters={characters.map((c) => ({
           ...c,
           itemLevel: Number(c.itemLevel),
+          isGoldCharacter: c.isGoldCharacter,
           raidSelections: c.raidSelections.map((r) => ({
             id: r.id,
             raidName: r.raidName,
             isCompleted: r.isCompleted,
+            isGoldTarget: r.isGoldTarget,
             weekStart: r.weekStart,
           })),
         }))}

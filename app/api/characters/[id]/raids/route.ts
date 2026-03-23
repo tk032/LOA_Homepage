@@ -38,19 +38,33 @@ export async function PUT(
       )
     }
 
+    // Preserve existing gold targets for raids that still exist
+    const existing = await prisma.raidSelection.findMany({
+      where: { characterId: id, weekStart },
+      select: { raidName: true, isGoldTarget: true },
+    })
+    const goldTargetSet = new Set(
+      existing.filter((r) => r.isGoldTarget).map((r) => r.raidName)
+    )
+
     // Delete existing selections for this week
     await prisma.raidSelection.deleteMany({
       where: { characterId: id, weekStart },
     })
 
-    // Create new selections
+    // Create new selections — preserve gold targets, auto-assign for new ones up to limit
     if (raids.length > 0) {
+      let autoGoldCount = raids.filter((r) => goldTargetSet.has(r)).length
       await prisma.raidSelection.createMany({
-        data: raids.map((raidName) => ({
-          raidName,
-          weekStart,
-          characterId: id,
-        })),
+        data: raids.map((raidName) => {
+          let isGoldTarget = goldTargetSet.has(raidName)
+          // Auto-assign gold for new raids if under limit
+          if (!isGoldTarget && autoGoldCount < 3) {
+            isGoldTarget = true
+            autoGoldCount++
+          }
+          return { raidName, weekStart, characterId: id, isGoldTarget }
+        }),
       })
     }
 

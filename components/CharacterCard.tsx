@@ -8,8 +8,8 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { RaidEditor } from "@/components/RaidEditor"
 import { cn } from "@/lib/utils"
-import { getRaidGold, MAX_GOLD_RAIDS, isRaidBound, getRaidGroup, RAID_GROUP_COLORS } from "@/lib/raids"
-import { Pencil, RotateCcw } from "lucide-react"
+import { getRaidGold, isRaidBound, getRaidGroup, RAID_GROUP_COLORS } from "@/lib/raids"
+import { Pencil, RotateCcw, Coins } from "lucide-react"
 
 const CLASS_COLOR: Record<string, string> = {
   워로드: "#e74c3c", 버서커: "#c0392b", 홀리나이트: "#f39c12", 슬레이어: "#e67e22",
@@ -26,6 +26,7 @@ interface RaidSelection {
   id: string
   raidName: string
   isCompleted: boolean
+  isGoldTarget: boolean
   weekStart: string
 }
 
@@ -35,6 +36,7 @@ interface Character {
   characterClass: string
   itemLevel: number
   imageUrl?: string
+  isGoldCharacter: boolean
   raidSelections: RaidSelection[]
 }
 
@@ -43,7 +45,7 @@ interface CharacterCardProps {
   weekStart: string
   onToggleComplete?: (characterId: string, raidName: string, weekStart: string, isCompleted: boolean) => Promise<void>
   onRaidUpdate?: (characterId: string, raids: RaidSelection[]) => void
-  // Edit mode
+  onGoldCharacterChange?: (characterId: string, isGold: boolean) => void
   editMode?: boolean
   isSelected?: boolean
   onSelect?: (characterId: string) => void
@@ -60,6 +62,7 @@ export function CharacterCard({
   weekStart,
   onToggleComplete,
   onRaidUpdate,
+  onGoldCharacterChange,
   editMode = false,
   isSelected = false,
   onSelect,
@@ -71,10 +74,12 @@ export function CharacterCard({
   onDrop,
 }: CharacterCardProps) {
   const [localSelections, setLocalSelections] = useState<RaidSelection[]>(character.raidSelections)
+  const [localIsGoldCharacter, setLocalIsGoldCharacter] = useState(character.isGoldCharacter)
   const [showRaidEditor, setShowRaidEditor] = useState(false)
   const [localItemLevel, setLocalItemLevel] = useState<number>(character.itemLevel)
   const [localImageUrl, setLocalImageUrl] = useState<string | undefined>(character.imageUrl)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [goldToggleError, setGoldToggleError] = useState("")
 
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const desiredStateRef = useRef<Record<string, boolean>>({})
@@ -83,23 +88,17 @@ export function CharacterCard({
   const total = localSelections.length
   const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0
 
-  const goldRaidNames = new Set(
-    [...localSelections]
-      .sort((a, b) => getRaidGold(b.raidName) - getRaidGold(a.raidName))
-      .slice(0, MAX_GOLD_RAIDS)
-      .map((r) => r.raidName)
-  )
+  const goldTargets = localSelections.filter((r) => r.isGoldTarget)
+  const goldTargetNames = new Set(goldTargets.map((r) => r.raidName))
 
   const earnedGold = localSelections
-    .filter((r) => r.isCompleted && goldRaidNames.has(r.raidName))
+    .filter((r) => r.isCompleted && goldTargetNames.has(r.raidName))
     .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
-
   const earnedBoundGold = localSelections
-    .filter((r) => r.isCompleted && goldRaidNames.has(r.raidName) && isRaidBound(r.raidName))
+    .filter((r) => r.isCompleted && goldTargetNames.has(r.raidName) && isRaidBound(r.raidName))
     .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
-
   const potentialGold = localSelections
-    .filter((r) => goldRaidNames.has(r.raidName))
+    .filter((r) => goldTargetNames.has(r.raidName))
     .reduce((sum, r) => sum + getRaidGold(r.raidName), 0)
 
   function handleToggle(raidName: string) {
@@ -116,6 +115,56 @@ export function CharacterCard({
       await onToggleComplete(character.id, raidName, weekStart, desiredStateRef.current[raidName])
       delete debounceRef.current[raidName]
     }, 400)
+  }
+
+  async function handleToggleGoldTarget(e: React.MouseEvent, raidName: string) {
+    e.stopPropagation()
+    if (!onToggleComplete) return // read-only week
+    const current = localSelections.find((r) => r.raidName === raidName)
+    if (!current) return
+
+    // Optimistic
+    setLocalSelections((prev) =>
+      prev.map((r) => r.raidName === raidName ? { ...r, isGoldTarget: !r.isGoldTarget } : r)
+    )
+
+    const res = await fetch(`/api/characters/${character.id}/gold-target`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raidName, weekStart }),
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      setGoldToggleError(data.error ?? "")
+      // Revert
+      setLocalSelections((prev) =>
+        prev.map((r) => r.raidName === raidName ? { ...r, isGoldTarget: current.isGoldTarget } : r)
+      )
+      setTimeout(() => setGoldToggleError(""), 3000)
+    } else {
+      const data = await res.json() as { isGoldTarget: boolean }
+      setLocalSelections((prev) =>
+        prev.map((r) => r.raidName === raidName ? { ...r, isGoldTarget: data.isGoldTarget } : r)
+      )
+    }
+  }
+
+  async function handleToggleGoldCharacter(e: React.MouseEvent) {
+    e.stopPropagation()
+    const next = !localIsGoldCharacter
+    setLocalIsGoldCharacter(next)
+
+    const res = await fetch(`/api/characters/${character.id}/gold-character`, { method: "POST" })
+    if (!res.ok) {
+      const data = await res.json()
+      setLocalIsGoldCharacter(!next) // revert
+      setGoldToggleError(data.error ?? "")
+      setTimeout(() => setGoldToggleError(""), 3000)
+    } else {
+      const data = await res.json() as { isGoldCharacter: boolean }
+      setLocalIsGoldCharacter(data.isGoldCharacter)
+      onGoldCharacterChange?.(character.id, data.isGoldCharacter)
+    }
   }
 
   async function handleRefresh(e: React.MouseEvent) {
@@ -139,7 +188,7 @@ export function CharacterCard({
   function handleRaidEditorSave(raids: string[]) {
     const newSelections: RaidSelection[] = raids.map((raidName) => {
       const existing = localSelections.find((r) => r.raidName === raidName)
-      return existing ?? { id: `tmp-${raidName}`, raidName, isCompleted: false, weekStart }
+      return existing ?? { id: `tmp-${raidName}`, raidName, isCompleted: false, isGoldTarget: false, weekStart }
     })
     setLocalSelections(newSelections)
     setShowRaidEditor(false)
@@ -157,7 +206,8 @@ export function CharacterCard({
       onDrop={onDrop}
       onClick={editMode ? () => onSelect?.(character.id) : undefined}
       className={cn(
-        "bg-gray-900 border-gray-700 transition-all overflow-hidden",
+        "border-gray-700 transition-all overflow-hidden",
+        localIsGoldCharacter ? "bg-gray-900" : "bg-gray-900/60",
         editMode && "cursor-grab active:cursor-grabbing select-none",
         editMode && isSelected && "border-blue-500 ring-2 ring-blue-500/40 bg-blue-950/30",
         isDragOver && !isDragging && "border-blue-400 ring-2 ring-blue-400/50 scale-[1.02]",
@@ -183,6 +233,12 @@ export function CharacterCard({
               <span className="text-2xl font-bold text-white">{character.characterClass.slice(0, 1)}</span>
             </div>
           )}
+          {/* Gold character badge */}
+          {localIsGoldCharacter && (
+            <div className="absolute bottom-1 right-1 rounded-full bg-gray-900/80 p-0.5">
+              <Coins className="h-3 w-3 text-yellow-400" />
+            </div>
+          )}
           {/* Selected overlay */}
           {editMode && isSelected && (
             <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
@@ -199,7 +255,24 @@ export function CharacterCard({
         <div className="flex-1 min-w-0 p-3 flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between gap-1">
-              <span className="font-bold text-white text-sm leading-tight truncate">{character.name}</span>
+              <span className={cn("font-bold text-sm leading-tight truncate", localIsGoldCharacter ? "text-white" : "text-gray-400")}>
+                {character.name}
+              </span>
+              {/* Gold character toggle */}
+              {onToggleComplete && (
+                <button
+                  onClick={handleToggleGoldCharacter}
+                  className={cn(
+                    "shrink-0 p-1 rounded transition-colors",
+                    localIsGoldCharacter
+                      ? "text-yellow-400 hover:text-yellow-300 hover:bg-gray-700"
+                      : "text-gray-600 hover:text-gray-400 hover:bg-gray-700"
+                  )}
+                  title={localIsGoldCharacter ? "골드 캐릭터 해제" : "골드 캐릭터 지정 (최대 6개)"}
+                >
+                  <Coins className="h-3 w-3" />
+                </button>
+              )}
               {/* Refresh button */}
               <button
                 onClick={handleRefresh}
@@ -209,7 +282,7 @@ export function CharacterCard({
               >
                 <RotateCcw className={cn("h-3 w-3", isRefreshing && "animate-spin")} />
               </button>
-              {/* Pencil always visible — stops card click in edit mode from bubbling */}
+              {/* Pencil */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -234,7 +307,7 @@ export function CharacterCard({
             <div className="mt-2 space-y-1">
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>{completed}/{total}</span>
-                {potentialGold > 0 && (
+                {localIsGoldCharacter && potentialGold > 0 && (
                   <span className="flex items-center gap-1">
                     {earnedGold - earnedBoundGold > 0 && (
                       <span className="text-yellow-400 font-medium">{(earnedGold - earnedBoundGold).toLocaleString()}g</span>
@@ -245,7 +318,7 @@ export function CharacterCard({
                     {earnedGold === 0 && (
                       <span className="text-yellow-400 font-medium">0g</span>
                     )}
-                    <span className="text-gray-600"> / {potentialGold.toLocaleString()}g</span>
+                    <span className="text-gray-600">/ {potentialGold.toLocaleString()}g</span>
                   </span>
                 )}
               </div>
@@ -256,6 +329,9 @@ export function CharacterCard({
       </div>
 
       <CardContent className="px-3 pb-3 pt-2">
+        {goldToggleError && (
+          <p className="text-xs text-red-400 mb-1.5">{goldToggleError}</p>
+        )}
         {showRaidEditor ? (
           <RaidEditor
             characterId={character.id}
@@ -268,44 +344,62 @@ export function CharacterCard({
         ) : total > 0 ? (
           <div className="flex flex-col gap-1">
             {localSelections.map((selection) => {
-              const isGoldRaid = goldRaidNames.has(selection.raidName)
+              const isGoldRaid = goldTargetNames.has(selection.raidName)
               const gold = getRaidGold(selection.raidName)
               const bound = isRaidBound(selection.raidName)
               const group = getRaidGroup(selection.raidName)
               const textColor = group ? RAID_GROUP_COLORS[group]?.text : "text-gray-200"
               return (
-                <button
-                  key={selection.raidName}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleToggle(selection.raidName)
-                  }}
-                  disabled={editMode}
-                  className={cn(
-                    "flex items-center justify-between w-full rounded-md border px-2 py-1 text-xs font-medium transition-all disabled:cursor-default",
-                    selection.isCompleted
-                      ? "border-gray-700/40 bg-gray-800/40"
-                      : "border-slate-700/60 bg-slate-800/60 hover:bg-slate-700/60"
+                <div key={selection.raidName} className="flex items-center gap-1">
+                  {/* Gold target toggle button */}
+                  {onToggleComplete && localIsGoldCharacter && gold > 0 && (
+                    <button
+                      onClick={(e) => handleToggleGoldTarget(e, selection.raidName)}
+                      className={cn(
+                        "shrink-0 rounded p-0.5 transition-colors",
+                        isGoldRaid
+                          ? bound ? "text-violet-400 hover:text-violet-300" : "text-yellow-400 hover:text-yellow-300"
+                          : "text-gray-600 hover:text-gray-400"
+                      )}
+                      title={isGoldRaid ? "골드 레이드 해제" : "골드 레이드 지정 (최대 3개)"}
+                    >
+                      <Coins className="h-3 w-3" />
+                    </button>
                   )}
-                >
-                  <span className={cn(
-                    selection.isCompleted
-                      ? "text-gray-600 line-through"
-                      : textColor ?? "text-gray-200"
-                  )}>
-                    {selection.raidName}
-                  </span>
-                  {isGoldRaid && gold > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggle(selection.raidName)
+                    }}
+                    disabled={editMode}
+                    className={cn(
+                      "flex items-center justify-between flex-1 rounded-md border px-2 py-1 text-xs font-medium transition-all disabled:cursor-default",
+                      selection.isCompleted
+                        ? "border-gray-700/40 bg-gray-800/40"
+                        : "border-slate-700/60 bg-slate-800/60 hover:bg-slate-700/60"
+                    )}
+                  >
                     <span className={cn(
-                      "font-normal ml-auto",
-                      bound
-                        ? selection.isCompleted ? "text-violet-800" : "text-violet-400"
-                        : selection.isCompleted ? "text-yellow-800" : "text-yellow-400"
+                      selection.isCompleted
+                        ? "text-gray-600 line-through"
+                        : textColor ?? "text-gray-200"
                     )}>
-                      {gold.toLocaleString()}g
+                      {selection.raidName}
                     </span>
-                  )}
-                </button>
+                    {gold > 0 && (
+                      <span className={cn(
+                        "font-normal ml-auto",
+                        !isGoldRaid || !localIsGoldCharacter
+                          ? "text-gray-600"
+                          : bound
+                          ? selection.isCompleted ? "text-violet-800" : "text-violet-400"
+                          : selection.isCompleted ? "text-yellow-800" : "text-yellow-400"
+                      )}>
+                        {gold.toLocaleString()}g
+                      </span>
+                    )}
+                  </button>
+                </div>
               )
             })}
           </div>

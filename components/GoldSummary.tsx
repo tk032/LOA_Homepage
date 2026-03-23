@@ -1,15 +1,17 @@
 "use client"
 
-import { getRaidGold, MAX_GOLD_RAIDS, getRaidGroup, RAID_GROUP_COLORS, isRaidBound } from "@/lib/raids"
+import { getRaidGold, getRaidGroup, RAID_GROUP_COLORS, isRaidBound } from "@/lib/raids"
 
 interface RaidSelection {
   raidName: string
   isCompleted: boolean
+  isGoldTarget: boolean
 }
 
 interface CharacterGoldProps {
   name: string
   itemLevel: number
+  isGoldCharacter: boolean
   raidSelections: RaidSelection[]
 }
 
@@ -17,20 +19,16 @@ interface GoldSummaryProps {
   characters: CharacterGoldProps[]
 }
 
-function getGoldRaids(raidSelections: RaidSelection[]): RaidSelection[] {
-  return [...raidSelections]
-    .sort((a, b) => getRaidGold(b.raidName) - getRaidGold(a.raidName))
-    .slice(0, MAX_GOLD_RAIDS)
-}
-
 export function GoldSummary({ characters }: GoldSummaryProps) {
-  if (characters.length === 0) return null
+  // Only gold characters contribute to summary
+  const goldChars = characters.filter((c) => c.isGoldCharacter)
+  if (goldChars.length === 0 && characters.length === 0) return null
 
   let totalEarned = 0
   let totalPotential = 0
 
-  const perChar = characters.map((char) => {
-    const goldRaids = getGoldRaids(char.raidSelections)
+  const perChar = goldChars.map((char) => {
+    const goldRaids = char.raidSelections.filter((r) => r.isGoldTarget)
     const earned = goldRaids.filter((r) => r.isCompleted).reduce((s, r) => s + getRaidGold(r.raidName), 0)
     const potential = goldRaids.reduce((s, r) => s + getRaidGold(r.raidName), 0)
     const earnedBound = goldRaids.filter((r) => r.isCompleted && isRaidBound(r.raidName)).reduce((s, r) => s + getRaidGold(r.raidName), 0)
@@ -39,6 +37,8 @@ export function GoldSummary({ characters }: GoldSummaryProps) {
     totalPotential += potential
     return { ...char, goldRaids, earned, potential, earnedBound, potentialBound }
   })
+
+  if (perChar.length === 0) return null
 
   const overallPct = totalPotential > 0 ? Math.round((totalEarned / totalPotential) * 100) : 0
 
