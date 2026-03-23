@@ -84,10 +84,11 @@ export async function POST(req: NextRequest) {
           }
         )
         if (profileRes.ok) {
-          const profile = await profileRes.json() as { CharacterImage?: string; Stats?: { Type: string; Value: string }[] }
+          const profile = await profileRes.json() as { CharacterImage?: string; CombatPower?: string }
           imageUrl = profile?.CharacterImage ?? ""
-          const cpStat = profile?.Stats?.find((s) => s.Type === "전투력")
-          if (cpStat) combatPower = parseInt(cpStat.Value.replace(/,/g, ""), 10) || 0
+          if (profile?.CombatPower) {
+            combatPower = Math.round(parseFloat(profile.CombatPower.replace(/,/g, ""))) || 0
+          }
         }
       }
     } catch {

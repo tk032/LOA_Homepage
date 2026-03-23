@@ -13,6 +13,7 @@ interface LostArkSibling {
 
 interface LostArkProfile {
   CharacterImage?: string
+  CombatPower?: string
   Stats?: { Type: string; Value: string }[]
   [key: string]: unknown
 }
@@ -64,7 +65,6 @@ export async function POST(
     // 2. Get updated profile image and combat power
     let newImageUrl = character.imageUrl ?? ""
     let newCombatPower = character.combatPower ?? 0
-    let debugStats: unknown = null
     try {
       const profileRes = await fetch(
         `https://developer-lostark.game.onstove.com/armories/characters/${encodeURIComponent(character.name)}/profiles`,
@@ -78,10 +78,8 @@ export async function POST(
       if (profileRes.ok) {
         const profile = await profileRes.json() as LostArkProfile
         newImageUrl = profile?.CharacterImage ?? newImageUrl
-        debugStats = profile
-        const cpStat = profile?.Stats?.find((s) => s.Type === "전투력")
-        if (cpStat) {
-          newCombatPower = parseInt(cpStat.Value.replace(/,/g, ""), 10) || 0
+        if (profile?.CombatPower) {
+          newCombatPower = Math.round(parseFloat(profile.CombatPower.replace(/,/g, ""))) || 0
         }
       }
     } catch {
@@ -98,7 +96,7 @@ export async function POST(
       },
     })
 
-    return NextResponse.json({ ...updated, _debugStats: debugStats })
+    return NextResponse.json(updated)
   } catch (error) {
     console.error("Refresh character error:", error)
     return NextResponse.json({ error: "아이템 레벨 갱신 중 오류가 발생했습니다." }, { status: 500 })
