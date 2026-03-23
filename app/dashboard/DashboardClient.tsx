@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { CharacterCard } from "@/components/CharacterCard"
 import { GoldSummary } from "@/components/GoldSummary"
 import { GoldHistoryChart } from "@/components/GoldHistoryChart"
-import { Settings } from "lucide-react"
+import { Settings, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface RaidSelection {
@@ -60,6 +60,7 @@ export function DashboardClient({ initialCharacters, weekStart, availableWeeks }
   const [isDeleting, setIsDeleting] = useState(false)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false)
 
   // Week switcher state
   const [selectedWeek, setSelectedWeek] = useState<string>(weekStart)
@@ -212,6 +213,33 @@ export function DashboardClient({ initialCharacters, weekStart, availableWeeks }
   function exitEditMode() {
     setEditMode(false)
     setSelectedIds(new Set())
+  }
+
+  async function handleRefreshAll() {
+    if (isRefreshingAll || characters.length === 0) return
+    setIsRefreshingAll(true)
+    try {
+      const results = await Promise.all(
+        characters.map((c) =>
+          fetch(`/api/characters/${c.id}/refresh`, { method: "POST" })
+            .then((r) => r.ok ? r.json() as Promise<{ itemLevel: number; imageUrl?: string }> : null)
+            .then((data) => ({ id: c.id, data }))
+        )
+      )
+      setCharacters((prev) =>
+        prev.map((c) => {
+          const result = results.find((r) => r.id === c.id)
+          if (!result?.data) return c
+          return {
+            ...c,
+            itemLevel: Number(result.data.itemLevel),
+            ...(result.data.imageUrl ? { imageUrl: result.data.imageUrl } : {}),
+          }
+        })
+      )
+    } finally {
+      setIsRefreshingAll(false)
+    }
   }
 
   async function handleSearch() {
@@ -400,13 +428,23 @@ export function DashboardClient({ initialCharacters, weekStart, availableWeeks }
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => setEditMode(true)}
-                className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-                title="편집 모드"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
+              <>
+                <button
+                  onClick={handleRefreshAll}
+                  disabled={isRefreshingAll}
+                  className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-40 transition-colors"
+                  title="전체 아이템레벨 갱신"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isRefreshingAll && "animate-spin")} />
+                </button>
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                  title="편집 모드"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              </>
             )}
           </div>
         </div>

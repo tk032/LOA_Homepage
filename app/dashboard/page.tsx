@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getWeekStart } from "@/lib/raids"
+import { getWeekStart, getRaidGold } from "@/lib/raids"
 import { WeekLabel } from "@/components/WeekLabel"
 import { WeekResetCountdown } from "@/components/WeekResetCountdown"
 import { DashboardClient } from "./DashboardClient"
@@ -16,7 +16,7 @@ export default async function DashboardPage() {
 
   const weekStart = getWeekStart()
 
-  const [characters, groupMemberships, weekRows] = await Promise.all([
+  const [rawCharacters, groupMemberships, weekRows] = await Promise.all([
     prisma.character.findMany({
       where: { userId: session.user.id, isActive: true },
       include: {
@@ -48,6 +48,32 @@ export default async function DashboardPage() {
       take: 8,
     }),
   ])
+
+  // Lazy-initialize isGoldTarget: if a character has selections but none are gold targets, auto-set top 3
+  const characters = await Promise.all(
+    rawCharacters.map(async (char) => {
+      const selections = char.raidSelections
+      const hasGoldTarget = selections.some((r) => r.isGoldTarget)
+      if (selections.length > 0 && !hasGoldTarget) {
+        const top3ids = [...selections]
+          .sort((a, b) => getRaidGold(b.raidName) - getRaidGold(a.raidName))
+          .slice(0, 3)
+          .map((r) => r.id)
+        await prisma.raidSelection.updateMany({
+          where: { id: { in: top3ids } },
+          data: { isGoldTarget: true },
+        })
+        return {
+          ...char,
+          raidSelections: selections.map((r) => ({
+            ...r,
+            isGoldTarget: top3ids.includes(r.id),
+          })),
+        }
+      }
+      return char
+    })
+  )
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
