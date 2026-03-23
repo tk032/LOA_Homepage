@@ -78,7 +78,7 @@ export async function POST(
       if (profileRes.ok) {
         const profile = await profileRes.json() as LostArkProfile
         newImageUrl = profile?.CharacterImage ?? newImageUrl
-        debugStats = profile?.Stats
+        debugStats = profile
         const cpStat = profile?.Stats?.find((s) => s.Type === "전투력")
         if (cpStat) {
           newCombatPower = parseInt(cpStat.Value.replace(/,/g, ""), 10) || 0
